@@ -1,0 +1,9 @@
+target/
+book/
+.env
+.env.*
+!.env.example
+.claude/
+.codex
+**/*.rs.bk
+.DS_Store

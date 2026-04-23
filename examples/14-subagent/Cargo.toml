@@ -1,0 +1,18 @@
+[package]
+name = "ex14-subagent"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+ex04-llm-api = { path = "../04-llm-api" }
+ex06-tool-use = { path = "../06-tool-use" }
+ex07-agent-loop = { path = "../07-agent-loop" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+dotenvy.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

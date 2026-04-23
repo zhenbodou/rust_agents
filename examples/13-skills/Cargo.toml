@@ -1,0 +1,11 @@
+[package]
+name = "ex13-skills"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+anyhow.workspace = true
+tempfile.workspace = true

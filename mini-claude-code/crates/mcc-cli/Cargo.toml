@@ -1,0 +1,27 @@
+[package]
+name = "mcc-cli"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "mcc"
+path = "src/main.rs"
+
+[dependencies]
+mcc-core   = { path = "../mcc-core" }
+mcc-llm    = { path = "../mcc-llm" }
+mcc-tools  = { path = "../mcc-tools" }
+mcc-harness = { path = "../mcc-harness" }
+mcc-session = { path = "../mcc-session" }
+mcc-config = { path = "../mcc-config" }
+mcc-tui    = { path = "../mcc-tui" }
+
+tokio.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+dotenvy.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+serde_json.workspace = true
+futures.workspace = true

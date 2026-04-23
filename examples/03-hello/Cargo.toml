@@ -1,0 +1,10 @@
+[package]
+name = "hello-agent"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

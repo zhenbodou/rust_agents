@@ -1,0 +1,26 @@
+[package]
+name = "ex15-mcp"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "mcp-client-demo"
+path = "src/bin/client.rs"
+
+[[bin]]
+name = "mcp-server-demo"
+path = "src/bin/server.rs"
+
+[lib]
+name = "ex15_mcp"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { workspace = true }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true

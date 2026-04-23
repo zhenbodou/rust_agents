@@ -1,0 +1,17 @@
+[package]
+name = "mcc-llm"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+mcc-core = { path = "../mcc-core" }
+tokio.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+eventsource-stream.workspace = true
+async-stream.workspace = true
+tracing.workspace = true

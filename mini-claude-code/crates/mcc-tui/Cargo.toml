@@ -1,0 +1,12 @@
+[package]
+name = "mcc-tui"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+mcc-core = { path = "../mcc-core" }
+tokio.workspace = true
+anyhow.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
+futures.workspace = true

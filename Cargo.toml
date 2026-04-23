@@ -1,0 +1,70 @@
+[workspace]
+resolver = "2"
+members = [
+    "examples/03-hello",
+    "examples/04-llm-api",
+    "examples/05-structured-output",
+    "examples/06-tool-use",
+    "examples/07-agent-loop",
+    "examples/08-memory",
+    "examples/11-permissions",
+    "examples/12-hooks",
+    "examples/13-skills",
+    "examples/14-subagent",
+    "examples/15-mcp",
+    "examples/16-observability",
+    "examples/17-reliability",
+    "examples/18-evals",
+    "mini-claude-code/crates/mcc-core",
+    "mini-claude-code/crates/mcc-llm",
+    "mini-claude-code/crates/mcc-tools",
+    "mini-claude-code/crates/mcc-harness",
+    "mini-claude-code/crates/mcc-session",
+    "mini-claude-code/crates/mcc-config",
+    "mini-claude-code/crates/mcc-tui",
+    "mini-claude-code/crates/mcc-cli",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT"
+rust-version = "1.75"
+
+[workspace.dependencies]
+tokio = { version = "1.40", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+anyhow = "1"
+thiserror = "2"
+once_cell = "1"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
+eventsource-stream = "0.2"
+async-stream = "0.3"
+
+regex = "1"
+globset = "0.4"
+ignore = "0.4"
+walkdir = "2"
+tempfile = "3"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+clap = { version = "4", features = ["derive", "env"] }
+ratatui = "0.28"
+crossterm = { version = "0.28", features = ["event-stream"] }
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+dotenvy = "0.15"
+dirs = "5"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

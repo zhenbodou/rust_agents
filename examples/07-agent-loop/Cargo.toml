@@ -1,0 +1,25 @@
+[package]
+name = "ex07-agent-loop"
+edition.workspace = true
+version.workspace = true
+
+[lib]
+name = "ex07_agent_loop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ex07-agent-loop"
+path = "src/main.rs"
+
+[dependencies]
+ex04-llm-api = { path = "../04-llm-api" }
+ex06-tool-use = { path = "../06-tool-use" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+dotenvy.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true

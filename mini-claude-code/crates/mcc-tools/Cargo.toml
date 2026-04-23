@@ -1,0 +1,13 @@
+[package]
+name = "mcc-tools"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+mcc-core = { path = "../mcc-core" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+ignore.workspace = true

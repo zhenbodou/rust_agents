@@ -1,0 +1,12 @@
+[package]
+name = "ex17-reliability"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+tokio.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rand = "0.8"
