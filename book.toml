@@ -1,7 +1,6 @@
 [book]
 authors = ["agents-tutorial"]
 language = "zh"
-multilingual = false
 src = "src"
 title = "AI Agent 开发与 Harness Engineering 实战 (Rust 版)"
 description = "从零基础到高级岗位：AI Agent 与 Harness Engineer 企业级开发，配套 mini-claude-code Rust 实战。"
@@ -14,10 +13,10 @@ create-missing = true
 default-theme = "navy"
 preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/zhenbodou/rust_agents"
+site-url = "/rust_agents/"
 edit-url-template = ""
 no-section-label = false
 mathjax-support = true
-copy-fonts = true
 
 [output.html.fold]
 enable = true

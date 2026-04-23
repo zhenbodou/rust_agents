@@ -2,6 +2,8 @@
 
 一本面向**中文读者**、**以 Rust 为载体**、**以工业级实战为目标**的 AI Agent 开发教程。
 
+在线阅读：<https://zhenbodou.github.io/rust_agents/>
+
 ## 本仓库包含什么
 
 - `src/`：mdbook 源码（30 章 + 附录）
