@@ -5,9 +5,14 @@ version.workspace = true
 
 [dependencies]
 mcc-core = { path = "../mcc-core" }
-tokio.workspace = true
+tokio      = { workspace = true, features = ["process"] }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 ignore.workspace = true
+regex.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

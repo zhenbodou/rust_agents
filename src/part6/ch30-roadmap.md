@@ -1,113 +1,133 @@
-# 第 30 章 持续学习路线图
+# 第 30 章 持续学习路线图：拿到 offer 之后
 
-> AI Agent 领域每个月都有新东西。这章给你"之后学什么"的地图。
+> 目标：给你一张"接下来学什么、怎么学、学多久"的地图。AI Agent 领域每个月都在变，但**变的是表层，稳的是内核**。本章帮你分清哪些值得追、哪些可以无视，并给出可以照着执行的阶段计划和每周节奏。你不需要焦虑地追每一个新框架——读完你会知道该把精力放哪。
 
-## 30.1 刚入门（0–3 个月）
+## 30.1 先建立心态：什么会变，什么不会变
 
-目标：把本书走完一遍，mini-claude-code 能上 GitHub。
+新手进入这个领域最大的痛苦是"焦虑"——每天都有新模型、新框架、新论文，感觉永远学不完。化解焦虑的关键，是分清两类知识：
 
-- 完整跑通 Part 2 所有示例
-- 实现并发布 mini-claude-code
-- 写 3 篇配套博客
+| 速朽的（表层） | 稳态的（内核） |
+|---|---|
+| 具体模型版本、价格、上下文窗口 | Agent Loop、Tool Use 的原理 |
+| 某个框架的 API（LangChain 等） | Context Engineering、权限、Hook 的思想 |
+| 今天最火的某个 agent 产品 | 可观测、eval、安全的工程方法 |
+| 某篇刚出的论文的具体数字 | ReAct、Reflexion 这类范式的本质 |
 
-## 30.2 进阶（3–12 个月）
+**左边一年后大半过时，右边十年都管用。** 本书 80% 讲的是右边——这就是为什么你不用怕"学完就过时"。你的策略应该是：**用稳态内核当锚，对表层变化保持轻量跟踪**。看到新东西，先问一句"它和我已知的内核是什么关系"，而不是从头学一遍。
 
-### 30.2.1 读官方文档
+## 30.2 阶段一：巩固（0–3 个月）
 
-每周读一次：
+这个阶段的唯一目标：**把本书走完一遍，让 `mini-claude-code` 真正上线 GitHub，能跑、能展示**。不要急着学新东西，先把手里的东西做扎实。
 
-- [Anthropic Docs](https://docs.anthropic.com) —— 权威，新 feature 第一手
-- [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook)
+具体里程碑（做完打勾）：
+
+- [ ] 完整跑通 Part 2 的所有示例，每个都能改一改、加个功能
+- [ ] `mini-claude-code` 发布到 GitHub，README、演示、CI 齐全（第 28 章）
+- [ ] 写完 3 篇配套技术博客
+- [ ] 能不看书、对着白板讲清楚 Agent Loop 的完整流程
+
+**给零基础者的提醒**：这个阶段最忌"贪多"。看到 Part 7 的 React、Part 9 的 K8s 觉得都得学，结果哪个都浅。正确顺序是先把**一条主线**（Agent + Rust 实现）打通，其他作为支线按需补。你已经有一个能展示的作品，就已经超过大多数求职者了。
+
+## 30.3 阶段二：进阶（3–12 个月）
+
+主线打通后，开始横向拓展和纵向加深。这个阶段有四件事并行做，每件都给你具体方法。
+
+### 30.3.1 读官方文档（保持手感）
+
+每周固定读一次第一手资料，跟上生态。不用全读，扫一遍 changelog 知道有什么新东西即可：
+
+- [Anthropic 文档](https://docs.claude.com) —— 最权威，新特性第一手
+- [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook) —— 可直接跑的实战示例
 - [OpenAI Cookbook](https://cookbook.openai.com)
-- [LangChain / LlamaIndex 博客](https://blog.langchain.dev) —— 哪怕你不用，也能看到生态动态
+- LangChain / LlamaIndex 博客 —— 哪怕你不用它们，也能看到生态在往哪走
 
-### 30.2.2 读代码
+> 注意：文档里的模型名、价格、上下文窗口随时会变（写作时主力是 Claude Opus / Sonnet / Haiku 系列，但你读到时很可能已迭代）。**遇到具体数字一律以官方最新为准，别记死。**
 
-| 项目 | 为什么值得读 |
+### 30.3.2 读开源代码（最快提升的方式）
+
+读工业级代码是新手到高手最快的路径。但**千万别从头读到尾**——会读睡着且没收获。正确方法是**带着问题读**：先提一个具体问题，再去对应目录找答案。
+
+| 项目 | 带什么问题去读 |
 |---|---|
-| [Claude Code](https://github.com/anthropics/claude-code) | 工业级 Harness 标杆 |
-| [Aider](https://github.com/Aider-AI/aider) | Python 版 coding agent，edit 策略值得学 |
-| [Goose](https://github.com/block/goose) | Rust 写的 agent，可对比你的实现 |
-| [rig](https://github.com/0xPlaygrounds/rig) | Rust LLM framework |
-| [OpenHands / SWE-Agent](https://github.com/All-Hands-AI/OpenHands) | swe-bench 冠军级 agent |
-| [continue](https://github.com/continuedev/continue) | VSCode 插件式 agent |
+| [Claude Code](https://www.npmjs.com/package/@anthropic-ai/claude-code) | "工业级 Harness 怎么组织权限和 Hook？" |
+| [Aider](https://github.com/Aider-AI/aider) | "它的 edit 算法怎么处理 diff 冲突？" |
+| [Goose](https://github.com/block/goose) | "Rust agent 的架构和我的有什么不同？" |
+| [OpenHands](https://github.com/All-Hands-AI/OpenHands) | "SWE-bench 冠军级 agent 怎么做规划？" |
+| [rig](https://github.com/0xPlaygrounds/rig) | "成熟的 Rust LLM 框架怎么做抽象？" |
 
-**读法**：不要从头读到尾，而是带问题读。"Aider 的 edit 算法怎么处理 diff 冲突？" → 去读对应目录。
+读法示范：你想知道"Aider 怎么让模型可靠地改代码"，就只去读它处理 edit 的那部分，对照你自己第 22 章的实现，记下"它和我不一样的地方 + 为什么"。一次读 300–500 行，写一篇读码笔记。一个月读 4 个点，你的"代码品味"就上一个台阶。
 
-### 30.2.3 学理论
+### 30.3.3 读经典理论（理解范式）
 
-- **Toolformer** / **ReAct** / **Reflexion** 等经典论文
-- Anthropic 的 ["Building effective agents"](https://www.anthropic.com/research)
-- [LLM Powered Autonomous Agents - Lilian Weng](https://lilianweng.github.io/posts/2023-06-23-agent/)
+不用啃一堆论文，几篇奠基性的读透即可。每篇花 1–2 小时精读，写笔记：
 
-每篇花 1–2 小时精读，写笔记到你的 memory 里。
+- **ReAct**（推理+行动交替）—— Agent 范式的源头
+- **Reflexion**（自我反思）—— 让 Agent 从失败中学习
+- Anthropic 的《Building effective agents》—— 工程视角的权威总结
+- Lilian Weng 的《LLM Powered Autonomous Agents》—— 一篇文章串起整个领域
 
-### 30.2.4 参加比赛
+读理论的目的不是记住细节，而是建立"这个领域有哪些基本套路"的全局观，将来看到新东西能对号入座。
 
-- **swe-bench**：全自动修 GitHub issue 的 benchmark
-- Kaggle AI agent 系列
-- AgentBench
+### 30.3.4 实战练兵（参加比赛 / 做项目）
 
-参赛本身就是强作品集。
+把学的东西放到真实挑战里检验：
 
-## 30.3 专家（1+ 年）
+- **SWE-bench**：全自动修真实 GitHub issue 的 benchmark，是检验 coding agent 的金标准
+- **AgentBench / Kaggle AI Agent 系列**：多样化的 agent 任务
 
-### 30.3.1 专精一个方向
+参赛过程本身就是强力作品集——"我在 SWE-bench 上把通过率从 X 提到 Y"是简历上极有分量的一条。
 
-- **Computer Use / GUI Agents**：Anthropic 已开放；方向热但未成熟
-- **多 Agent 协作 / 编排**：CrewAI / AutoGen 在做，理论还没定型
-- **Agent Security**：红队、可信执行、supply chain
-- **Evals Science**：eval 建模本身是前沿
-- **MCP (Model Context Protocol)**：Anthropic 开源的标准化协议，将成为生态基础
+## 30.4 阶段三：专精（1 年以上）
 
-### 30.3.2 参与标准
+到这个阶段，你应该**选一个方向深扎**，而不是继续做样样通。下面几个方向都热且有空间：
 
-- MCP：[Model Context Protocol 规范](https://modelcontextprotocol.io)
-- 贡献 server / client 或规范 RFC
-- 加入相关 working group
+- **Computer Use / GUI Agent**：让 Agent 操作图形界面，方向热但远未成熟，机会多
+- **多 Agent 协作与编排**：理论还没定型，谁先做出可靠方案谁占先
+- **Agent Security**：红队、可信执行、供应链安全——随 Agent 普及越来越重要
+- **Evals Science**：怎么科学地评测 Agent 本身就是前沿课题
+- **MCP（模型上下文协议）**：Anthropic 开源的标准化协议，正在成为生态基础设施
 
-### 30.3.3 写代码 / 写文章 / 讲
+选定方向后，做三件能放大影响力的事：**写代码**（一个该方向的开源项目）、**写文章**（持续输出该方向的深度内容）、**讲出去**（meetup / 会议分享）。一个可执行的目标：一年内做到一个开源项目 ⭐ 500+、10 篇深度文章、3 次公开分享。**在一个细分方向建立影响力，本身就是最强的职业护城河。**
 
-1 年内达成：1 个开源项目 ⭐ 500+；10 篇技术文章；3 次 meetup 分享。**影响力本身就是你的生产力工具**。
+## 30.5 落地：一份可执行的每周节奏
 
-## 30.4 每周节奏建议
+光有方向不够，要变成习惯。给你一个每周模板，按自己情况调整时长：
 
-| 日 | 内容 |
-|---|---|
-| 周一 | 读 1 篇论文或官方 changelog |
-| 周三 | 读 500 行开源代码，写读码笔记 |
-| 周五 | 给 mini-claude-code 加一个 feature 或 eval |
-| 周末 | 写一篇博客 / 录一段演示 |
+| 时间 | 做什么 | 产出 |
+|---|---|---|
+| 周一 | 读一篇论文或官方 changelog | 一段笔记 |
+| 周三 | 读 300–500 行开源代码 | 一篇读码笔记 |
+| 周五 | 给你的项目加一个 feature 或一条 eval | 一个 commit |
+| 周末 | 写一篇博客 / 录一段演示 | 一篇公开内容 |
 
-## 30.5 社区
+坚持这个节奏三个月，你会积累出 12 篇笔记、12 个新功能、12 篇公开内容——复利效应会让你和"只是上班"的同行迅速拉开。
 
-- Discord：Anthropic / OpenAI 官方、LangChain、MCP 等
-- Twitter/X：@AnthropicAI, @OpenAI, @lilianweng, @karpathy, @simonw
-- 中文社区：掘金 AI 专题、知乎、微信群（关注 Cursor / Claude 中文群）
+## 30.6 避开三个常见陷阱
 
-## 30.6 心态
+新手在这个领域最容易掉进三个坑，提前给你打预防针：
 
-**避免三种陷阱**：
+1. **框架病**：永远在追最新框架，从没深入过任何一个。**解药**：选你自己写的那个（`mini-claude-code`）深耕，框架只是参考。
+2. **论文焦虑**：论文无穷无尽，越读越慌。**解药**：只读和你当前项目直接相关的，读完就用上。
+3. **速朽恐惧**：怕模型一变、技能就废。**解药**：记住 Harness 是稳态技能——系统工程、权限、eval、可观测，和具体哪个模型无关（回到 30.1）。
 
-1. **框架病**：永远在追新框架，从不深入某一个。答案：选一个自己写的（你的 mini-claude-code）深耕。
-2. **论文焦虑**：论文无穷多。答案：只读和你当前作品相关的。
-3. **速朽恐惧**：模型/API 一直变。答案：记住 **Harness 是稳态技能**——系统工程、权限、eval、可观测，和哪个模型无关。
+## 30.7 自检：你现在应该能做到
 
-## 30.7 离开这本书之前
-
-你现在应该能：
+走完本书 + 阶段一，给自己做个体检。下面每一条你都该能自信地说"能"：
 
 - ✅ 独立设计并实现一个编码 Agent
-- ✅ 讲清楚 Agent、Harness、Context、Hook、Subagent 的关系
-- ✅ 写出带错误处理、观测、权限、eval 的生产代码
-- ✅ 应对大部分 AI Agent 工程师面试
-- ✅ 持续学习并跟上领域演化
+- ✅ 讲清楚 Agent、Harness、Context、Hook、Subagent 之间的关系
+- ✅ 写出带错误处理、可观测、权限、eval 的生产级代码
+- ✅ 从容应对大部分 AI Agent / Harness 工程师面试
+- ✅ 有一套持续学习的方法，跟得上领域演化
+
+如果某条还心虚，回到对应章节再过一遍——这正是它该有的用法。
 
 ## 30.8 最后的话
 
-> AI Agent 不是魔法，是好工程。把每一章的"无聊"细节做扎实——日志格式、错误分类、权限规则、eval 数据——你就会比 90% 的 "AI 工程师"更值钱。
+> AI Agent 不是魔法，是**好工程**。把每一章里那些"无聊"的细节做扎实——日志格式、错误分类、权限规则、eval 数据——你就会比 90% 自称"AI 工程师"的人更值钱、更难被替代。
 >
-> 祝你顺利拿到心仪的 offer。之后，记得回来给这本书提 issue 和 PR。
+> 你已经从"没用过这些技术"走到了"能独立做出并讲清楚一个 Agent 系统"。这条路你走下来了，剩下的，是用同样的耐心继续走下去。
+>
+> 祝你拿到心仪的 offer。之后若这本书帮到了你，欢迎回来提 issue 和 PR，把你的经验传给下一个人。
 
-—— The End of the Book（暂时）
-
+> **下一部分**：从这里开始，我们补齐 Agent 工程师需要的"周边技术栈"——前端、后端与 Python、容器与 DevOps，全部从零讲起，让没接触过的你也能一步步学到能用、能讲、能写进简历。

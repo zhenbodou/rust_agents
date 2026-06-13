@@ -24,6 +24,8 @@ members = [
     "mini-claude-code/crates/mcc-tui",
     "mini-claude-code/crates/mcc-cli",
 ]
+# agent-eval-platform 是独立项目（自带构建配置），不并入本 workspace
+exclude = ["agent-eval-platform/server"]
 
 [workspace.package]
 edition = "2021"

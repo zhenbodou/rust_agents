@@ -1,142 +1,247 @@
-# 第 29 章 高频面试题 40 讲
+# 第 29 章 面试通关：从流程到 40 道高频题
 
-> 按话题分类。每题都给关键答题提纲，重点技术细节请回翻对应章节。
+> 目标：把你学到的知识，训练成面试现场**脱口而出**的反应。本章先带你看懂一场 Agent 工程师面试长什么样、每一轮在考什么，再给你一套通用的答题方法，最后用 40 道高频题逐一演练。你没面试过这类岗位也没关系——我们从"面试到底怎么进行"开始。
 
-## A. 基础概念（8 题）
+## 29.1 先看全景：一场面试有哪几关
+
+很多人一紧张，是因为不知道接下来会发生什么。先把流程摊开，焦虑就少一半。一场典型的 AI Agent / Harness 工程师面试，通常有 4–5 轮，每轮考的东西完全不同：
+
+| 轮次 | 时长 | 考什么 | 你靠哪部分准备 |
+|---|---|---|---|
+| HR / 招聘官初筛 | 20 分钟 | 你是谁、为什么投、薪资预期 | 自我介绍 + 项目一句话 |
+| 技术初面 | 45–60 分钟 | 基础概念 + 你的项目细节 | 本章 A、B 类题 |
+| 手撕代码 / 系统设计 | 60 分钟 | 现场写代码或设计系统 | 本章 C 类题 + 第 4–7 章 |
+| 深度技术面 | 60 分钟 | 往深里挖，追问到底 | 本章 D 类题 |
+| 行为面 / 团队匹配 | 45 分钟 | 协作、价值观、抗压 | 本章 E 类题 + STAR |
+
+**关键认知**：技术面试**不是考你背了多少，而是看你怎么思考**。面试官更想听你"如何拆解一个问题、如何权衡、踩过什么坑"，而不是一个标准答案。这对你是好消息——你做过 `mini-claude-code`，每个决策背后都有真实的权衡和踩坑，这正是面试官想挖的金矿。
+
+## 29.2 一套万能答题框架
+
+不管被问什么技术问题，都可以套这个四步框架，它能让你的回答听起来有条理、有深度：
+
+> **① 一句话结论 → ② 为什么（原理）→ ③ 怎么做（具体方案/代码）→ ④ 权衡与坑（你的实战经验）**
+
+第④步是区分新手和高手的分水岭。新手答到③就停了；高手会补一句"但这样做有个代价是……我当时是这么权衡的"。这一句话，瞬间证明你**真的做过**，而不是背的。
+
+举个例子，被问"Agent 的温度参数怎么设"：
+
+- ❌ 新手："设低一点，0 左右。"（对，但太单薄）
+- ✅ 高手："**结论**：Agent 场景设 0–0.3。**为什么**：工具调用要的是稳定可复现，高温会让 tool 参数出错。**怎么做**：我项目里默认 0.0。**权衡**：但全 0 会让模型在需要创造性的子任务上变笨，所以我给'写文档'类 subagent 单独调高到 0.5——温度其实该按任务分档，不是全局一个值。"
+
+感受到差距了吗？同样的知识点，第二种答法让面试官记住你。下面 40 道题，重点的我会用这个框架给你演示，其余给你"答题提纲 + 加分点"。
+
+## 29.3 A 类 · 基础概念（必答，答错出局）
+
+这类题考的是地基，答错直接说明你没真懂。要求：**简洁、准确、能打比方**。
 
 **1. Agent 和 Workflow 的本质区别？**
-Agent 的控制流由 LLM 动态决定；Workflow 由开发者写死。LLM 决策 → Tool 调用 → 观察 → 再决策的循环是 Agent 核心；Workflow 是硬编码 DAG。
 
-**2. LLM 为什么能调用工具？**
-把工具调用表示为一段约定的文本（`tool_use` 内容块）。训练数据里有大量 "遇到此类问题就输出工具调用" 的模式。宿主代码识别后执行并把结果写回上下文。
+结论：**控制流由谁决定**。Workflow 的流程是开发者写死的（固定 DAG）；Agent 的流程由 LLM 在运行时动态决定（看到工具结果再决定下一步）。打个比方：Workflow 是轨道上的火车，Agent 是有导航的司机。加分点：补一句"所以 Agent 更灵活但更难预测、更难测试，这就是为什么需要 Part 4 那套可观测和 eval"。
 
-**3. Agent Loop 里哪些情况会导致死循环？怎么防？**
-模型反复调用同一工具；工具一直失败；max_tokens 导致回复被截断。防护：`max_iterations` 上限、`budget_usd` 上限、工具调用去重检测、`max_tokens` 触发时明确终止或摘要。
+**2. LLM 是个文本补全器，为什么能调用工具？**
 
-**4. stop_reason 的几种值？**
-`end_turn` / `stop_sequence` / `tool_use` / `max_tokens`。Loop 必须对每种明确处理。
+结论：因为**工具调用也是用文本表达的**。模型被训练成"遇到需要外部信息时，输出一段约定格式的'工具调用'文本"，宿主程序识别这段文本、真的去执行、再把结果塞回上下文，模型继续补全。本质是"约定一种文本协议 + 在客户端执行它描述的动作"。这题答好了，说明你抓住了 Agent 的第一性原理。
 
-**5. 温度参数对 Agent 意味着什么？**
-低温（0.0–0.3）稳定、可重复，适合 tool call；高温多样性强但 tool 参数易错。Agent 默认 0.0。
+**3. Agent Loop 里哪些情况会死循环？怎么防？**
 
-**6. Context window 越大越好吗？**
-不是。Lost in the middle 效应；越大越贵越慢；越大越容易污染。正确做法是 Context Engineering 精心装配。
+提纲：成因有三——模型反复调同一个工具、工具一直失败重试、回复被 max_tokens 截断导致状态错乱。防护四件套：`max_iterations` 上限、`budget_usd` 预算上限、工具调用去重检测、对 `max_tokens` 截断明确处理。加分：提你项目里 `ToolContext` 的 `depth` 字段和预算熔断。
 
-**7. 幻觉对 Agent 的危害比 Chatbot 大吗？**
-大。幻觉会触发错误的 tool 调用，错误结果污染后续上下文。对抗：grounding（读真实文件）、verifier 子 Agent、权限硬控。
+**4. stop_reason 有哪几种值，循环要怎么处理？**
 
-**8. Agent 为什么要有 observability？**
-长时间运行 + 多步 + 多工具 + 外部依赖，不可观测就不可运维。必须：日志、trace、metrics、session replay。
+`end_turn`（正常结束，返回结果）、`tool_use`（要调工具，执行后继续循环）、`max_tokens`（被截断，要警惕状态不完整）、`stop_sequence`（命中停止词）。Loop 必须对每种**显式处理**，漏一种就是 bug。
 
-## B. Harness Engineering（10 题）
+**5. 温度参数对 Agent 意味着什么？** （见 29.2 的示范答法）
 
-**9. 介绍下你理解的 Harness Engineer 职责。**
-见第 9 章 12 条。重点强调：Agent Runtime、工具、Context、权限、Hook、Subagent、Caching、Eval、可观测、安全——系统工程而非 ML。
+**6. 上下文窗口越大越好吗？**
 
-**10. 权限系统三模式的设计思路？**
-default：读自动允许、写/执行询问；acceptEdits：写也允许；bypass：全自动。deny > allow > mode default > ask。deny 永远最高优先级，不能被覆盖。
+不是。三个代价：越大越贵越慢；有"lost in the middle"效应（中间内容被忽略）；越大越容易被无关信息污染。正解是 Context Engineering（第 10 章）精心装配，而非一股脑塞满。
+
+**7. 幻觉对 Agent 的危害比聊天机器人大吗？**
+
+大得多。聊天里幻觉顶多说错话；Agent 里幻觉会**触发错误的工具调用**（删错文件、提错 commit），且错误结果进了上下文会**污染后续所有决策**。对抗三招：grounding（读真实文件）、verifier 子 Agent 校验、权限硬控（再幻觉也越不过沙箱）。
+
+**8. Agent 为什么必须有可观测性？**
+
+因为它"长时间运行 + 多步骤 + 多工具 + 依赖外部"，是个黑盒。不可观测就不可运维、不可调试。必备：结构化日志、全链路 trace、关键 metrics、session 可回放。
+
+## 29.4 B 类 · Harness 工程（这是你的主场）
+
+这类题是 Harness 岗位的核心，也是你相对别人的优势区。答这些题时多引用你项目里的真实实现。
+
+**9. 你理解的 Harness Engineer 职责是什么？**
+
+提纲：Harness = LLM 之外的一切系统（第 9 章 12 条职责）。强调它**本质是系统工程而非 ML**：runtime、工具、上下文、权限、Hook、Subagent、缓存、eval、可观测、安全。加分：一句"这就是为什么后端/基础设施背景的人转型有优势"——展示你理解这个岗位的定位。
+
+**10. 权限系统的三种模式怎么设计？**
+
+提纲：default（读自动放行、写/执行询问）、acceptEdits（写也放行）、bypass（全自动）。优先级铁律：**deny > allow > 模式默认 > ask**，且 **deny 永远最高、不可被覆盖**。加分：解释为什么 deny 不可覆盖——这是安全底线，宁可误拦不可漏放。
 
 **11. 怎么防 Prompt Injection？**
-6 层：system prompt 警示 → 隔离标签 → 权限 deny → 沙箱 → 凭据扫描 → eval 红队。关键思想：不要依赖模型自觉，**宿主层硬控**。
 
-**12. Subagent 的价值与陷阱？**
-价值：上下文隔离、并行、便宜模型分流。陷阱：递归深度、预算失控、结论不可靠。对策：depth 限制、budget 限制、verifier。
+结论：**不要依赖模型自觉，要在宿主层硬控**。六层纵深：system 提示警示 → 隔离标签包裹不可信内容 → 权限 deny 兜底 → 沙箱隔离 → 凭据扫描 → eval 红队回归。加分：强调"任何单层都会被绕过，纵深防御的意义是让攻击者要同时突破六层"。
+
+**12. Subagent 的价值和陷阱？**
+
+价值：上下文隔离（脏活不污染主上下文）、并行加速、便宜模型分流降本。陷阱：递归失控、预算烧穿、子 Agent 结论不可靠。对策：depth 限制、budget 限制、关键结论用 verifier 复核。
 
 **13. Hook 系统怎么设计？**
-事件 + 匹配器 + 命令（shell 或内建）。8 种事件（Pre/PostToolUse、UserPromptSubmit、SessionStart/Stop、Notification、PreCompact、SubagentStop）。Pre 事件可阻止，Post 可改输出。
 
-**14. 怎么做上下文的缓存命中？**
-把稳定部分放前（system、工具 schema、skill instructions），cache_control 标记到末尾。监控 `cache_read_input_tokens` / 总 input 的比率，目标 >= 0.7。
+提纲：事件 + 匹配器 + 命令（shell 或内建）。八种事件（Pre/PostToolUse、UserPromptSubmit、SessionStart/Stop、Notification、PreCompact、SubagentStop）。关键设计：**Pre 事件可以阻止操作、Post 事件可以改写输出**——这让 Hook 既能做安全闸门又能做增强。
 
-**15. 如何控制一次 session 的成本？**
-分层模型（主 Opus、sub Haiku）、预算硬上限、截断、Batch API、Prompt caching、压缩/摘要。
+**14. 怎么提高 Prompt Cache 命中率？**
 
-**16. Skill 与 Slash Command 的关系？**
-Slash 是一行别名，触发词；Skill 是能力包（带 instructions、示例、可选工具）。Slash 常被用来触发 Skill。
+结论：稳定的放前面、多变的放后面。把 system、工具 schema、skill 指令这些稳定块放最前，用 `cache_control` 标到末尾；用户当前问题、git status 这些放最后。监控 `cache_read / 总 input` 比率，目标 ≥ 0.7。翻车点：system 里塞了时间戳之类的变量，导致每次前缀都不一样、永远不命中。
 
-**17. Tool 输出要截断吗？**
-要。否则大文件 / 大 log 会炸上下文。头尾保留 + 中间省略 + 告知模型 "截断了 N 字节"。
+**15. 怎么控制一次 session 的成本？**
 
-**18. 什么时候该上 RAG？**
-> 100 个文档，或文档量超过上下文窗口，或有高度非结构化资料。优先把长期记忆做成 Markdown；RAG 是最后的手段。
+六连招：分层模型（主 Opus、子 Haiku）、预算硬上限、工具输出截断、Batch API、Prompt caching、历史压缩/摘要。
 
-## C. 代码与系统设计（10 题）
+**16. Skill 和 Slash Command 什么关系？**
 
-**19. 设计一个 trait 让 Agent 支持多家 LLM Provider。**
-`trait LlmProvider { fn complete; fn stream; }` + `CompleteRequest` / `MessageResponse` 归一化；Anthropic / OpenAI / 自研 各自 impl。第 4 章详述。
+Slash Command 是一行别名/触发词；Skill 是一个能力包（带指令、示例、可选工具依赖）。常见模式是用 Slash 触发一个 Skill。
 
-**20. Agent 一次回合内多个 tool_use，并发还是串行执行？**
-并发。用 `tokio::spawn` fan-out，所有 tool 跑完再一起写回 user 角色 tool_result。但要注意：部分工具不是并发安全（如两个 edit_file 同一文件），可在 Tool trait 加 `is_concurrent_safe()` 标记串行组。
+**17. 工具输出要不要截断？怎么截？**
 
-**21. 流式响应怎么一边更新 UI 一边拼完整 block？**
-SSE 事件两路消费：向 UI 送 `TextDelta`，同时聚合到 `current_text`。`ToolUseStart` 时 flush text block；`ToolUseInputDelta` 累计 partial_json；`MessageStop` 时把最后一个 tool_use 也落成 block。
+要。否则一个大文件或长日志会撑爆上下文。做法：保留头尾 + 中间省略 + 明确告诉模型"截断了 N 字节，可用 offset 继续读"。
 
-**22. 如何做 tool 调用的超时？**
-三层：HTTP `timeout`、单 tool `tokio::time::timeout`、整 turn 外层 wrap。内层 < 外层。bash 子进程要 `kill_on_drop(true)` 或显式 SIGTERM→SIGKILL。
+**18. 什么时候才该上 RAG？**
 
-**23. 怎么实现 edit_file 的精确替换？**
-"old_string 必须唯一命中"，否则失败并提示加上下文或 `replace_all`。写 tmp → rename 原子替换。
+提纲：文档超过 ~100 个、或总量超过上下文窗口、或大量非结构化资料时。优先把长期记忆做成结构化 Markdown，RAG 是**最后手段**不是默认选项——这个判断本身就是经验的体现。
 
-**24. Session 怎么存储才能 replay？**
-JSONL 每轮一行：完整 `messages`（至该轮之前）+ assistant blocks + tool outputs + usage。加 `meta.json` 元数据（title、cost、status）。
+## 29.5 C 类 · 代码与系统设计（现场演练，最考真功夫）
 
-**25. 如何防止 Rust Agent 里的内存无限增长？**
-流式结果及时写回磁盘；messages 超阈值触发压缩；大文件只读 offset/limit；tool 输出 `MAX_OUTPUT_BYTES` 截断。
+这类题面试官会让你**当场写代码或画架构**。答这类题的诀窍：**边想边说，把思考过程暴露出来**。面试官想看的是你怎么推导，哪怕最后没写完，清晰的思路也能拿分。
 
-**26. 设计一个 circuit breaker。**
-3 状态（closed / open / half-open）。连续失败 N 次打开；打开期间快速失败；冷却时间后进入 half-open 允许探测请求。见第 17 章代码。
+现场设计题的通用流程：**① 复述需求确认理解 → ② 列出关键约束和边界 → ③ 给出主干方案 → ④ 主动指出权衡和可扩展点**。
 
-**27. 一个 tool 失败，主 Agent 应该怎么办？**
-不要 panic。把错误写成 `tool_result` `is_error: true`，让模型看到。模型可能重试、换参数、或放弃。**用 LLM 处理 LLM 能处理的问题**。
+**19. 设计一个支持多家 LLM 厂商的抽象。**
 
-**28. 如何设计一个 eval 框架？**
-YAML 数据集 → Runner 在临时 sandbox 布置 fixtures → 跑 Agent → 多种 checker（bash / contains / judge）→ 预算约束 → 聚合报告 → CI 门禁。
+主干：定义 `trait LlmProvider`，含 `complete` 和 `stream` 两个方法，用统一的 `CompleteRequest`/`MessageResponse` 做归一化；Anthropic、OpenAI、国产模型各自 impl。难点要主动提：不同厂商的 system 字段位置、工具 schema 格式、stop_reason 命名都不同，要在适配层翻译。引用第 4 章你的真实实现。
 
-## D. 高级主题（7 题）
+**20. 一回合里有多个 tool_use，并发还是串行执行？**
 
-**29. Prompt caching 怎么省钱的原理？**
-Anthropic 服务端缓存 prefix 的 KV。命中时只收 10% input token 费用。要求前缀逐字节一致；稳定在前、多变在后。最多 4 个 cache_control 标记。
+结论：默认并发（`tokio::spawn` fan-out，全跑完再一起写回结果）。但要主动补**陷阱**：有些工具不是并发安全的（比如两个 edit 改同一文件），所以我在 Tool trait 上加了 `is_concurrent_safe()` 标记，把不安全的归为串行组。这个"主动指出并发陷阱"会让面试官眼前一亮。
 
-**30. 什么是 lost in the middle？怎么缓解？**
-长上下文中间部分被模型忽略。缓解：重要指令在首尾重复；用户当前问题放最后；关键决策做成结构化 TODO 放系统末尾。
+**21. 流式响应怎么一边更新 UI 一边拼出完整消息块？**
 
-**31. Agent 对同一个 prompt 结果不稳定，怎么排查？**
-温度？采样？上下文有时间戳等变量导致不命中缓存？tool 结果里有时序信息？每次加的 context provider 是否稳定？用 session replay 对比两次的 exact messages diff。
+提纲：SSE 事件两路消费——一路把 `TextDelta` 实时推给 UI，一路聚合到 `current_text`；遇到 `ToolUseStart` 就 flush 当前文本块，`ToolUseInputDelta` 累计工具参数的 partial JSON，`MessageStop` 时把最后的工具块也落定。引用第 21、23 章。
 
-**32. 如何让 Agent 自己决定调用哪个 subagent？**
-在 system prompt 里列一个 "Available Subagents"目录；每条带"何时用"。`spawn_subagent(preset, task)` 让模型选 preset。
+**22. 工具调用怎么做超时？**
+
+三层超时，内层 < 外层：HTTP 层 `timeout`、单个工具 `tokio::time::timeout`、整个 turn 外层兜底。子进程要 `kill_on_drop(true)` 或显式 SIGTERM→SIGKILL，否则超时了进程还在后台跑。
+
+**23. edit_file 的精确替换怎么实现？**
+
+核心两点：`old_string` 必须**唯一命中**，否则失败并提示"加更多上下文或设 replace_all"；写入用"写临时文件→rename"做**原子替换**，避免崩溃中损坏原文件。这是第 22 章的招牌设计，能讲透说明你懂工业级细节。
+
+**24. Session 怎么存才能回放？**
+
+JSONL 每轮一行，记录完整的 messages（到该轮为止）、assistant 的内容块、工具输出、usage；另存一个 `meta.json` 记标题、成本、状态。这样任何一条 run 都能逐轮重放——调试和 eval 都靠它。
+
+**25. 怎么防止 Rust Agent 内存无限增长？**
+
+四招：流式结果及时写回磁盘不留内存；messages 超阈值触发压缩；大文件只读 offset/limit；工具输出设 `MAX_OUTPUT_BYTES` 截断。
+
+**26. 设计一个熔断器（circuit breaker）。**
+
+三状态：closed（正常）、open（连续失败 N 次后打开，快速失败保护下游）、half-open（冷却后放探测请求，成功则恢复 closed）。第 17 章有代码。
+
+**27. 一个工具失败了，主 Agent 该怎么办？**
+
+结论：**绝不 panic**。把错误包成 `tool_result` 且 `is_error: true`，让模型看到这个错误——模型可能重试、换参数或放弃。核心理念：**能让 LLM 处理的问题就交给 LLM 处理**，宿主只负责把错误如实传达。
+
+**28. 怎么设计一个 eval 框架？**
+
+流程：YAML 定义数据集 → Runner 在临时沙箱布置 fixtures → 跑 Agent → 多种 checker 判定（bash 退出码 / 文本包含 / LLM judge）→ 预算约束 → 聚合报告 → 接入 CI 门禁。引用第 18 章和 Part 10 的评测平台。
+
+## 29.6 D 类 · 深度追问（区分高级和资深）
+
+这类题往一个点上死磕，考你的理解有多深。答不出不致命，但答得出就是亮点。
+
+**29. Prompt caching 省钱的底层原理？**
+
+服务端缓存请求前缀的 KV Cache，命中时这部分只收 ~10% 的 input 费用，延迟也大降。前提：前缀**逐字节一致**才命中；最多 4 个 `cache_control` 标记；稳定在前、多变在后。
+
+**30. 什么是 lost in the middle，怎么缓解？**
+
+长上下文中，模型对开头和结尾最敏感，中间部分容易被忽略。缓解：最重要的指令在 system 开头和结尾**各放一遍**；用户当前问题放最后；关键决策做成结构化 TODO 放系统末尾。
+
+**31. Agent 对同一 prompt 结果不稳定，怎么排查？**
+
+排查清单：温度是不是没设 0？上下文里有没有时间戳之类的变量？工具结果里有没有时序信息？每轮注入的 context provider 是否稳定？终极武器：用 session replay 对比两次的**精确 messages diff**，找出到底哪里不一样。
+
+**32. 怎么让 Agent 自己决定调哪个 subagent？**
+
+在 system prompt 里列一个"可用 Subagents 目录"，每条标注"何时该用"，然后用 `spawn_subagent(preset, task)` 让模型自己选 preset。本质是把选择权交给模型，但用清晰的描述引导。
 
 **33. Agent 要支持中断，Rust 里怎么优雅实现？**
-`tokio_util::sync::CancellationToken`，所有 await 点用 `tokio::select!` 监听 token。子进程 `kill_on_drop` 或先 SIGTERM。UI 按 Esc 触发 cancel。
 
-**34. 如何做 Agent 的 A/B 测试？**
-按 session 哈希分桶；不同桶用不同 system prompt / 模型。记录相同指标（完成率、成本、用户打分），统计显著差异后切流。
+用 `tokio_util::sync::CancellationToken`，所有 await 点用 `tokio::select!` 同时监听这个 token；子进程 `kill_on_drop` 或先 SIGTERM；UI 按 Esc 触发 cancel。难点是要保证中断后状态一致、资源都清理掉。
 
-**35. 多租户部署时如何隔离？**
-每个 tenant 独立 api key、独立 cost quota、独立 session 存储 key（加密）、独立沙箱（microVM）。日志 tenant_id 打标。
+**34. 怎么给 Agent 做 A/B 测试？**
 
-## E. 行为面试（5 题）
+按 session 哈希分桶，不同桶用不同 system prompt 或模型，记录相同指标（完成率、成本、用户评分），跑出统计显著差异后再切流。
 
-**36. 描述一次你 debug 复杂 Agent 问题的经历。**
-结构：现象 → 已有观测（日志/trace）→ 假设 → 验证 → 根因 → 修复 → 回归。引用你 mini-claude-code 里的真实案例。
+**35. 多租户部署怎么做隔离？**
 
-**37. 你怎么平衡模型能力与成本？**
-分层策略（主/子模型）、缓存、截断、batch、prompt 精简、评估驱动迭代。
+每个租户独立 API key、独立成本配额、独立加密的 session 存储、独立沙箱（microVM 级）；所有日志打 `tenant_id` 标签。一个失控租户不该影响其他人。
 
-**38. 你最得意的 Agent 设计决策？**
-例如"edit_file 强制唯一匹配"——根因：防模型误伤其他代码，效果：回归率显著下降。讲权衡：增加了失败率但可控，比"静默覆盖"好。
+## 29.7 E 类 · 行为面试：用 STAR 讲故事
 
-**39. 对未来 1 年 Agent 技术的看法？**
-比如长期趋势：多模态、computer use、更强的 planning、eval infra 成为一级公民。别夸海口，体现有独立思考。
+行为面试考的不是技术，是"你这个人好不好共事、靠不靠谱"。这里没有标准答案，但有**标准结构**——STAR：
 
-**40. 你为什么选 Rust 做 AI 工具？**
-启动快、内存安全、长跑稳定、部署简单（静态二进制）。适合 CLI、沙箱、基础设施。承认限制：生态不如 Python，但 I/O + agent harness 场景够用。
+> **S**ituation（背景）→ **T**ask（你的任务）→ **A**ction（你具体做了什么）→ **R**esult（结果，最好量化）
 
-## 小结
+很多技术强的人栽在行为面，因为讲故事东一榔头西一棒子。用 STAR 把故事讲得有条理，是可以练的。
 
-- A 类考底子、B 类考视野、C 类考代码、D 类考深度、E 类考价值观
-- 每题都能引用到你的 mini-claude-code 作品——这是你最大的护城河
-- 面试不要背答案，要把答案和项目里的**真实决策**挂钩
+**36. 讲一次你 debug 复杂问题的经历。**
 
-> **下一章**：持续学习路线图，拿到 offer 只是开始。
+用 STAR 套你项目里的真实案例。比如：（S）Agent 偶尔会卡死不响应；（T）我要定位并修复；（A）我看 trace 发现是某个工具串行执行 + 默认 30s 超时叠加，加了流式输出和智能超时；（R）卡死率从 X 降到 0，并补了回归 eval 防止复发。**关键是 A 要具体、R 要有数据**。
 
+**37. 你怎么平衡模型能力和成本？**
+
+提纲：分层模型策略、缓存、截断、batch、prompt 精简、eval 驱动迭代。结合你项目里 cache 命中率 0.74、subagent 降本 3 倍的真实数据讲。
+
+**38. 你最得意的一个技术决策？**
+
+举一个有"权衡"的决策，比如"edit_file 强制唯一匹配"。讲清楚：根因（防止模型误改其他代码）、效果（回归率下降）、**以及代价**（增加了一定失败率）——主动讲代价，说明你是清醒的工程师而非盲目乐观。
+
+**39. 你怎么看未来一年的 Agent 技术？**
+
+别吹牛，体现独立思考。可以谈：多模态、computer use、更强的 planning、eval 基础设施成为一等公民。重点是讲你**为什么**这么判断，逻辑比结论重要。
+
+**40. 你为什么用 Rust 做 AI 工具？**
+
+提纲：启动快、内存安全、长跑稳定、部署简单（静态二进制），适合 CLI / 沙箱 / 基础设施。**然后主动承认局限**：生态不如 Python 丰富，但在 I/O + harness 场景够用。承认局限反而显得你客观可信。
+
+## 29.8 别忘了：你也在面试公司（反问环节）
+
+面试最后那句"你有什么想问的吗？"**绝不能说"没有"**。这是你展示思考深度、同时筛选公司的机会。准备 3 个有水平的问题，比如：
+
+- "你们的 Agent 现在最大的可靠性瓶颈是什么？"（显示你懂这行的痛点）
+- "团队怎么做 Agent 的 eval 和回归？"（显示你重视质量）
+- "Harness 和算法团队怎么分工协作？"（显示你理解岗位定位）
+
+好的反问，能让面试官记住你是"真懂行的人"。
+
+## 29.9 谈薪：临门一脚别手软
+
+拿到 offer 后的谈薪，几分钟可能值几万块，但很多人不敢谈。几条原则：
+
+- **不要先报数字**。被问期望薪资，可以反问"这个岗位的预算区间是多少"，或给一个有依据的区间。
+- **用市场行情和你的作品集做锚**：你有开源项目、技术博客、能量化的成果，这些都是议价筹码。
+- **谈的是总包**：base、奖金、股票/期权、签字费分开看，不要只盯 base。
+- **有多个 offer 时坦诚说明**（不必透露具体公司和数字），这是最有力的筹码。
+
+谈薪不是贪心，是对自己价值的合理定价。你为这套技能投入了几个月，值得拿到对得起它的回报。
+
+## 29.10 小结
+
+- 看懂面试全景：5 轮各考不同的东西，知道流程焦虑就少一半。
+- 万能框架：结论 → 原理 → 方案 → 权衡与坑，第四步的"实战经验"是高手分水岭。
+- 40 道题分五类：A 考地基、B 是你的主场、C 现场演练要边想边说、D 深度追问、E 行为面用 STAR。
+- 每道题都往你的 `mini-claude-code` 真实决策上挂——这是你最大的护城河。
+- 反问和谈薪是临门一脚，准备好的人和没准备的人，结果差很远。
+
+> **下一章**：拿到 offer 只是起点。给你一张"之后学什么"的持续学习地图，让你在这个每月都在变的领域里不掉队。

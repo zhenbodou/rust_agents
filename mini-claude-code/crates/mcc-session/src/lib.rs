@@ -26,6 +26,9 @@ pub struct TurnSnapshot {
     pub tool_outputs: Vec<(String, String, bool)>,
     pub usage: Usage,
     pub model: String,
+    /// USD cost for this turn; accumulated into SessionMeta.cost_usd.
+    #[serde(default)]
+    pub cost_usd: f64,
 }
 
 pub struct SessionRecorder {
@@ -74,9 +77,11 @@ impl SessionRecorder {
         let line = serde_json::to_string(&turn)? + "\n";
         self.writer.lock().await.write_all(line.as_bytes()).await?;
 
+        let turn_cost = turn.cost_usd;
         let snapshot = {
             let mut m = self.meta.lock().unwrap();
             m.turns += 1;
+            m.cost_usd += turn_cost;
             m.clone()
         };
         tokio::fs::write(&self.meta_path, serde_json::to_string_pretty(&snapshot)?).await?;

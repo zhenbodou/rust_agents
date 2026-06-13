@@ -14,9 +14,9 @@
 ## 本书的核心承诺
 
 1. **从零开始**：不假设你懂机器学习，也不假设你是 Rust 高手。每个概念第一次出现都会解释。
-2. **全部 Rust 实现**：所有示例代码均为 Rust，可直接 `cargo build` 运行。我们不用 Python。
+2. **Rust 主线，多语言全栈**：核心实现用 Rust（Part 1–5）；Part 7 起加入 TypeScript/React 前端、Python 生态（LangChain / OpenAI Agents SDK / RL 集成）——这是真实岗位 JD 的完整技术栈。
 3. **生产级**：代码不是"Hello World"玩具，而是带错误处理、日志、配置、测试、可观测性的企业级范式。
-4. **完整实战**：第五部分会带你用 Rust 从零实现一个 **mini-claude-code**——一个能读文件、写代码、调用 shell、带权限系统、支持子 Agent 的编码助手。
+4. **两个完整实战**：Part 5 用 Rust 从零实现 **mini-claude-code**（编码助手）；Part 10 实现 **agent-eval-platform**（评测平台：Rust 后端 + React 前端 + 轨迹回放 + K8s 部署），对应大厂 Agent Infra 岗位的真实工作内容。
 
 ## 什么是 "Harness Engineer"
 
@@ -32,7 +32,8 @@
 | 完全小白 | 按顺序读完 Part 1–2，再跳到 Part 5 跟做项目，回头看 Part 3–4 |
 | 有后端经验 | Part 1 快速扫过，Part 2–5 细读 |
 | 只想看 Claude Code 怎么做的 | 先读 Part 3（概念），再直接看 Part 5（代码） |
-| 正在求职 | 读完后务必做完 Part 5，再啃 Part 6 的 40 道面试题 |
+| 目标 Agent Infra / 全栈岗 | Part 1–5 打底 → Part 7（前端）→ Part 8（Python/RL）→ Part 9（DevOps）→ Part 10 做完整平台 |
+| 正在求职 | 读完后务必做完 Part 5 和 Part 10 两个项目，再啃 Part 6 的 40 道面试题与附录 D 开源项目 |
 
 ## 配套代码仓库
 

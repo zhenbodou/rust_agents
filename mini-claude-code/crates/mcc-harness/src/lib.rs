@@ -1,8 +1,8 @@
-//! Harness: AgentLoop + PermissionChecker + HookDispatcher。
-//! 详细实现见书中第 23–26 章，此处仅给出能编译的核心骨架。
+//! mcc-harness：企业级 AgentLoop + PermissionChecker。
+//! 完整实现见书第 23–26 章。
 
-pub mod permission;
 pub mod agent;
+pub mod permission;
 
-pub use permission::*;
-pub use agent::*;
+pub use agent::{AgentLoop, AgentLoopBuilder, AgentRun};
+pub use permission::{Action, Decision, PermissionChecker, PermissionRequest};

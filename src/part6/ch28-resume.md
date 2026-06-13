@@ -1,134 +1,213 @@
-# 第 28 章 简历、项目与作品集
+# 第 28 章 从零打造作品集与简历
 
-> 学到这里，你已经比 80% 应聘 "AI Agent 工程师" 的人都更系统。现在要把知识变成 offer。
+> 目标：把前面学到的东西，变成招聘方**看得见、信得过、点得开**的证据。本章不是讲道理，而是一个手把手的工作坊——读完你会有一份能直接投出去的简历、一个让面试官愿意点进去的 GitHub、一段 30 秒的演示视频。你一行求职经验都没有也没关系，我们从最基础的"招聘方到底在找什么"讲起。
 
-## 28.1 目标岗位画像
+## 28.1 先理解：招聘方读简历时在想什么
 
-截至 2026 年，以下岗位都在招这套技能：
+想象你是面试官，桌上堆着 200 份简历，每份**平均只看 8 秒**。你在找什么？不是"会的技术多"，而是一个能快速回答的问题：
 
-| 岗位 Title | 典型公司 | 侧重 |
+> **"这个人能不能上手就干我手头这摊活？有没有证据？"**
+
+这就是全部。所有简历技巧，都是为了在 8 秒内把这个问题的答案塞进面试官脑子里。普通求职者犯的错，是把简历写成"技能清单"——罗列一堆名词（Rust、Docker、K8s……），但没有一个证据。招聘方看到的是"声称会"，而不是"证明会"。
+
+我们要做的事，本质是把天平从"声称"搬到"证明"：
+
+| 弱（声称） | 强（证明） |
+|---|---|
+| "熟悉 AI Agent 开发" | "用 Rust 从零实现了编码 Agent，GitHub 开源，附架构文档" |
+| "了解 prompt 优化" | "写了篇《Prompt Caching 降本 90%》，附 benchmark 数据" |
+| "掌握 Docker/K8s" | "项目用多阶段构建把镜像压到 30MB，CI 自动扫描签名" |
+
+右边这一列每一条，背后都是一个**你能拿出来、对方能点开**的东西。本章剩下的部分，就是教你一件件造出这些"右列证据"。
+
+## 28.2 这套技能能投哪些岗位
+
+先给自己一张地图，知道终点在哪。截至 2026 年，下面这些岗位都在找你正在学的这套能力（按与本书的契合度排序）：
+
+| 岗位 Title | 它最看重什么 | 你的哪部分对口 |
 |---|---|---|
-| AI Agent Engineer | OpenAI 生态创业 / 国内 LLM 大厂 | 全栈 Agent 开发 |
-| Harness Engineer | Anthropic / Cursor / Replit | Agent runtime + 工具 |
-| Developer Experience (DX) for AI | 字节 / 腾讯 AI Lab | 开发者工具 |
-| Applied AI Engineer | 各行业 AI 应用公司 | 业务集成 |
-| AI Platform Engineer | 大厂 AI 平台组 | 多租户 infra |
-| LLM SRE / Evals Engineer | 金融 / 医疗 AI | 可靠性 + 评估 |
+| Harness / Agent Infra Engineer | Agent runtime、工具、权限、可观测 | Part 3–5 全部 |
+| AI Agent Engineer | 端到端做出能用的 Agent | Part 2 + Part 5 |
+| Applied AI Engineer | 把 LLM 接进业务 | Part 2 + Part 8 |
+| LLM Evals / Quality Engineer | 评测体系、回归 | Part 4 ch18 + Part 10 |
+| AI Platform / DevOps for AI | 多租户、容器、运维 | Part 9 + Part 10 |
 
-薪资区间（一线城市，3–5 年经验）：P7 级 40–80w/年；P8 70–130w/年；美企远程 $160k–$300k。
+**给零基础读者的关键认知**：这些岗位里，**大部分工作量是系统工程，不是算法**（第 9 章讲过）。你不需要会训练模型、不需要数学背景，照样能进。这对转行者、后端/运维出身的人是巨大利好——你缺的只是"做出一个能展示的东西"，而这正是本书带你做的。
 
-## 28.2 简历骨架
+## 28.3 第一步：把项目打磨成"作品"
 
-硬技术岗简历 = **一个强项目 + 3 个佐证细节 + 清晰技术栈**。
+普通求职者有"项目"，强求职者有"作品"。区别在哪？**作品是给陌生人看的，项目是给自己跑的。** 一个陌生面试官点进你的 GitHub，30 秒内要能回答三个问题：这是干嘛的？有多厉害？怎么跑起来？
 
-### 一份示范简历（节选）
+我们以你的 `mini-claude-code` 为例，一步步把它从"代码仓库"升级成"作品"。
 
-> **张三**  · AI Agent 工程师
-> zhang@example.com · github.com/zhangsan · 微信 / Telegram: ...
->
-> ### 主要项目：mini-claude-code（2026.02–至今）
-> 
-> 用 Rust 从零实现的类 Claude Code 编码助手，公开于 GitHub ⭐ xxx。
->
-> - **Agent Runtime**：基于 Tool-calling loop 设计，支持流式 SSE、并发 tool 执行、可取消与预算控制。单次请求 P50 首 token 延迟 800ms，支持最多 40 轮 tool 循环。
-> - **Harness**：实现细粒度权限系统（allow/deny/ask，glob + regex），Pre/Post Tool Hook（与 Claude Code JSON 协议兼容），Subagent fan-out（3 倍成本优化）。
-> - **可观测性**：基于 tracing + OpenTelemetry 的全链路 trace，每轮 input/output/cache token 指标上 Prometheus。Prompt cache 命中率 0.74。
-> - **安全**：实现 6 层纵深防御（system → tag 隔离 → 权限 deny → 沙箱 → 凭据扫描 → eval 红队），已用 50 个 prompt-injection 样本回归测试。
-> - **测试**：自建 eval 框架（YAML 驱动），集成 CI 门禁，主干 pass-rate ≥ 92%。
->
-> 技术栈：Rust (tokio, reqwest, ratatui), Anthropic / OpenAI 兼容 API, OpenTelemetry, ripgrep lib, bwrap。
->
-> ### 深度技术文章
-> - 《Prompt Caching 降本 90% 的实战》博客阅读 8k+
-> - 《从零设计 Agent 的权限系统》GitHub Gist ⭐ 500+
+### 28.3.1 README：你的项目门面（最重要）
 
-**要点分析**：
+90% 的面试官只看 README，不看代码。README 写不好，再好的代码也白搭。一个合格的 README 第一屏（不滚动就能看到的部分）必须有四样东西：**一句话价值、一张演示图、三条亮点、五分钟上手**。
 
-- 项目讲清楚"做什么 / 怎么做 / 结果怎样"——数据说话
-- 技术细节显露深度（"P50 延迟"、"cache 命中率"）
-- 有公开的 GitHub 仓库 + 博客 = 可验证
-- 把 **Harness Engineering 关键词**（权限、Hook、Subagent、eval、caching）全部展示出来
+直接给你一个可以套用的模板，把方括号里的内容换成你自己的：
 
-## 28.3 GitHub 作品集该长什么样
-
-**一个精品项目 > 五个半成品**。推荐把 mini-claude-code 打磨到：
-
-- README 第一屏有 demo GIF + 一行核心价值
-- "Quick start" 5 分钟能跑起来
-- 有 docs/ 详细架构文档
-- CI 徽章 + 覆盖率徽章 + 版本徽章
-- CHANGELOG.md 规范
-- CONTRIBUTING.md + issue templates
-- 至少 10 条有意义的 commit（而不是一次 push 完）
-
-### Readme 模板
-
-```markdown
+````markdown
 # mini-claude-code
 
-> A local-first coding agent in Rust, inspired by Claude Code.
+> 用 Rust 从零实现的本地编码 Agent，灵感来自 Claude Code。
 
-![demo](./docs/demo.gif)
+![演示](./docs/demo.gif)   <!-- 第一屏就让人"看见"它在跑 -->
 
-## Why another coding agent?
+## 它解决什么问题
 
-- 🦀 **100% Rust** — static binary, fast startup, zero-GC
-- 🔒 **Security first** — glob/regex permissions + sandbox + secret scanning
-- 🧩 **Hook-compatible with Claude Code settings.json**
-- 🧠 **Subagent fan-out** cuts long-horizon cost by 3×
+- 🦀 **纯 Rust**：单文件二进制、启动快、无 GC 停顿
+- 🔒 **安全优先**：glob/正则权限 + 沙箱 + 密钥扫描，模型再幻觉也删不了你的 .git
+- 🧩 **可扩展**：兼容 Claude Code 的 Hook 协议，Subagent 并行把长任务成本降到 1/3
 
-## Install
+## 5 分钟上手
 
-  cargo install mini-claude-code
-  mcc   # runs the TUI
-
-## Architecture
-
-See [docs/architecture.md](docs/architecture.md).
-
-## License
-MIT
+```bash
+cargo install mini-claude-code
+export ANTHROPIC_API_KEY=sk-ant-...
+mcc                       # 启动交互界面
 ```
 
-## 28.4 博客 / 公众号 / YouTube
+## 架构
 
-3 篇技术博客能让你从简历海里脱颖而出：
+一张图看懂 → [docs/architecture.md](docs/architecture.md)
 
-1. **"用 Rust 写一个 Claude Code：架构篇"**
-2. **"Prompt Caching：工程师绝不能忽视的降本武器"**
-3. **"Agent 里的 Prompt Injection 防御实战"**
+## 许可证
+MIT
+````
 
-每篇 2000–4000 字，配代码 + 架构图。发在掘金 / 知乎 / dev.to / Medium 同步。面试官搜你名字能找到 = 大加分。
+**为什么这样写有效**，逐条拆给你看：
 
-## 28.5 开源贡献
+- **第一行的一句话**，用"用 X 做 Y"的格式，让人 3 秒知道这是什么。不要写"一个强大的、现代的、基于先进架构的……"这种空话。
+- **演示图（GIF）放在最显眼处**：人是视觉动物，一张动图胜过千言。28.5 节教你怎么录。
+- **三条亮点用 emoji 开头 + 加粗关键词**：方便扫读。每条都点出一个"别人没有/做得不好"的差异点。
+- **上手命令必须能复制粘贴直接跑**：面试官真的会去跑。跑不起来 = 减分。
 
-选一个活跃项目：
+### 28.3.2 让仓库看起来"专业且活跃"
 
-- `rig` (Rust 的 LLM framework)
-- `swiftide`
-- `oxc` / `biome` 与 AI 集成部分
-- 国内：`eino`（字节 Agent 框架）
+面试官会下意识地用一些信号判断你靠不靠谱。把这些信号补齐，成本很低但回报很高：
 
-提 1–2 个有深度的 PR（不要只改错别字）。在简历里写明 "Contributed X to Y project"。
+| 信号 | 怎么做 | 传递的信息 |
+|---|---|---|
+| 提交历史 | 至少 15+ 条有意义的 commit，不要一次 push 完 | "持续投入，不是赶工" |
+| commit 信息规范 | 用 `feat:` `fix:` `docs:` 前缀（第 48 章） | "懂工程规范" |
+| CI 徽章 | README 顶部放绿色的 CI passing 徽章 | "代码有测试、能构建" |
+| 文档目录 | `docs/` 里有架构图、设计决策 | "能把复杂系统讲清楚" |
+| LICENSE | 放一个 MIT | "懂开源基本规矩" |
+| CHANGELOG | 记录版本变化 | "有产品意识" |
 
-## 28.6 Demo 视频
+这里有个关键心法：**这些不是表演，是真的在练你将来上岗要做的事**。写规范 commit、配 CI、写架构文档，正是岗位日常。所以打磨作品集 = 提前演练工作，一举两得。
 
-30 秒演示：TUI 启动 → 用户输入 → Agent 跑起来 → 工具并行 → 产出结果。
+### 28.3.3 一个项目 > 五个半成品
 
-ASCII-Cast / 录屏 → 放 README。面试官看 30 秒比读 30 分钟文字有用得多。
+新手最常见的误区是"多多益善"——GitHub 上挂十个跑了一半的 demo。**这是反效果的**。面试官看到一堆半成品，得到的信号是"什么都浅尝辄止"。
 
-## 28.7 LinkedIn / 脉脉
+正确做法：**把一个项目挖到底**。`mini-claude-code` 一个项目，就能展示权限、Hook、Subagent、可观测、eval、安全六个维度的深度（这正是 Harness 岗位的核心关键词）。深度才是稀缺的，广度谁都有。
 
-标题建议：
-> AI Agent Engineer | Built mini-claude-code in Rust | Harness engineering, observability, evals
+## 28.4 第二步：一句一句写出强简历
 
-正文前 3 行讲清楚你做什么，链接 GitHub + 博客。
+很多人卡在"不知道怎么把项目写成简历条目"。别担心，这有公式。每一条项目经历，都按这个结构写：
 
-## 28.8 小结
+> **【做了什么系统】+【用了什么关键技术】+【达到了什么可量化的结果】**
 
-- 作品集 >>> 证书
-- 一个深挖的项目，三篇技术博客，GitHub 整洁活跃
-- 关键词：Harness、权限、Hook、Subagent、Caching、Eval、Observability
+我们来看一个真实的"改写"过程，体会弱→强的差别：
 
-> **下一章**：40 道高频面试题，把你学到的东西训练成肌肉记忆。
+**初稿（弱）**：
+> - 实现了一个 Agent 的工具调用功能
 
+**问题**：没说怎么做的，没说结果，谁都能写。
+
+**二稿（中）**：
+> - 实现了 Agent 的工具调用循环，支持文件读写和 shell 执行
+
+**好一点，但还是"声称"，没有深度和数据。**
+
+**终稿（强）**：
+> - **Agent Runtime**：基于 Tool-calling loop 设计，支持流式 SSE 输出、多工具并发执行、可取消与 token 预算控制；P50 首 token 延迟 800ms，单任务最多稳定跑 40 轮工具循环。
+
+**为什么终稿强**：点出了具体架构名词（让懂行的人知道你真懂）、列了工程难点（并发、取消、预算——都是"做过才知道"的细节）、给了数据（800ms、40 轮——数据无法伪造，最有说服力）。
+
+下面是一份可以直接参照的简历项目段落（把内容换成你自己的真实数据）：
+
+```text
+张三 · AI Agent / Harness 工程师
+zhang@example.com · github.com/zhangsan · 个人博客链接
+
+【核心项目】mini-claude-code —— Rust 实现的编码 Agent（2026.02 至今，开源 ⭐ xxx）
+
+· Agent Runtime：Tool-calling 循环，支持流式 SSE、并发工具执行、可取消、
+  token 预算控制；P50 首 token 800ms，稳定支持 40 轮工具循环。
+· Harness：细粒度权限系统（allow/deny/ask，glob+正则），Pre/Post Tool Hook
+  （兼容 Claude Code JSON 协议），Subagent 并行将长任务成本降至 1/3。
+· 可观测性：基于 tracing + OpenTelemetry 的全链路 trace，每轮 token/cost
+  指标上报 Prometheus；Prompt cache 命中率稳定 0.74。
+· 安全：6 层纵深防御（system 提示→隔离标签→权限 deny→沙箱→密钥扫描→
+  eval 红队），用 50 条 prompt-injection 样本做回归。
+· 工程：自建 YAML 驱动的 eval 框架接入 CI 门禁，主干通过率 ≥ 92%。
+
+技术栈：Rust（tokio / reqwest / ratatui）、Anthropic & OpenAI 兼容 API、
+        OpenTelemetry、Docker、Kubernetes。
+```
+
+**给零基础者的叮嘱**：数据不用造假，但要**去测量**。你的项目跑起来后，真的去记一下首 token 延迟、cache 命中率、eval 通过率——这些第 15、16、18 章都教过怎么测。有真实数据的简历，面试时你能侃侃而谈；编的数据，一问就穿帮。
+
+## 28.5 第三步：录一段 30 秒演示
+
+文字再好，不如让人**亲眼看到它在跑**。一段 30 秒的演示视频，是简历里性价比最高的一项。
+
+**录什么**：启动你的工具 → 输入一个真实任务（比如"修复这个测试"）→ 让 Agent 跑起来 → 展示它读文件、调工具、改代码、测试通过。一气呵成，不要剪辑得太花哨。
+
+**怎么录**（命令行工具的最佳方式）：用 [asciinema](https://asciinema.org) 录制终端，它录的是文本不是像素，体积小、清晰、可回放。或者用系统自带的屏幕录制转成 GIF：
+
+```bash
+# 安装 asciinema
+brew install asciinema          # macOS；Linux 用 apt/包管理器
+
+asciinema rec demo.cast         # 开始录，操作完按 Ctrl-D 结束
+# 转成 GIF 放进 README（需要 agg 工具）
+agg demo.cast docs/demo.gif
+```
+
+**放在哪**：README 第一屏、简历的项目链接旁、LinkedIn。面试官看 30 秒动图，比读 30 分钟文字更能建立信任。
+
+## 28.6 第四步：写技术博客，让人能搜到你
+
+这是把你和"简历海"里其他人拉开差距的杀手锏。面试官在约你之前，常会**搜一下你的名字**。如果搜到几篇有深度的技术文章，你在他心里的可信度直接翻倍。
+
+不用多，**3 篇**就够，每篇 2000–4000 字，配代码和图。选题就从你项目里最有料的点切入：
+
+1. **《用 Rust 写一个 Claude Code：架构篇》**——讲你怎么设计 Agent Loop 和工具系统，展示系统设计能力。
+2. **《Prompt Caching：把 Agent 成本砍掉 90% 的实战》**——讲第 16 章的技术，配你的真实 benchmark，展示工程深度。
+3. **《Agent 里的 Prompt Injection 防御实战》**——讲第 19 章的六层防御，展示安全意识。
+
+发到掘金、知乎、dev.to、Medium（中英各发一份），互相导流。**写博客的附带好处**：逼你把知识真正讲清楚——能写出来的，面试才答得出来。这本身就是最好的面试准备。
+
+## 28.7 进阶：开源贡献与社区存在
+
+当上面四步都做完，还想再加码，就去给真实开源项目提 PR。选一个活跃的 Rust/Agent 项目，提 1–2 个**有深度的** PR（修个真 bug、加个真功能，不要只改错别字）：
+
+- `rig`、`swiftide`（Rust 的 LLM 框架）
+- `goose`（Block 开源的 Rust agent，可与你的实现对比）
+- 国内的 `eino`（字节 Agent 框架）
+
+简历里写明"为 X 项目贡献了 Y"。这传递的信号是"能在陌生的大型代码库里工作"——这恰恰是入职后第一个月要做的事。
+
+## 28.8 把它串成一条线：求职准备清单
+
+把本章变成一个可勾选的 checklist，按顺序做完，你就具备了投递的全部弹药：
+
+- [ ] 项目 README 第一屏有：一句话价值 + 演示 GIF + 三条亮点 + 5 分钟上手
+- [ ] 仓库有 15+ 规范 commit、CI 徽章、`docs/` 架构文档、LICENSE
+- [ ] 简历核心项目按"系统+技术+数据"公式写，每条都有真实量化结果
+- [ ] 录好 30 秒演示，放进 README 和简历
+- [ ] 写完并发布 3 篇技术博客
+- [ ] （加分）给 1 个开源项目提了有深度的 PR
+- [ ] LinkedIn/脉脉 标题：`AI Agent / Harness Engineer · Built mini-claude-code in Rust`
+
+## 28.9 小结
+
+- 招聘的本质是"8 秒内证明你能干这活"，一切技巧都为把"声称"变成"证据"。
+- 作品集的核心是**一个挖到底的项目**：README 是门面、演示图是钩子、规范 commit 和文档是可信度信号。
+- 简历每条按"做了什么系统 + 用了什么技术 + 量化结果"写，数据要真测不要编。
+- 博客让人搜得到你、演示让人看得见、开源 PR 证明你能在真实代码库工作。
+
+> **下一章**：把你脑子里的知识，训练成面试时脱口而出的肌肉记忆——40 道高频面试题，每题带答题框架和翻车点。

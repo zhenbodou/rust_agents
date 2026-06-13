@@ -29,7 +29,7 @@ pub struct ModelConfig { pub main: String, pub subagent: String, pub summarize: 
 impl Default for ModelConfig {
     fn default() -> Self {
         Self {
-            main: "claude-opus-4-7".into(),
+            main: "claude-opus-4-8".into(),
             subagent: "claude-sonnet-4-6".into(),
             summarize: "claude-haiku-4-5-20251001".into(),
         }
@@ -263,18 +263,145 @@ pub async fn build_agent(cfg: &Config, cwd: PathBuf) -> anyhow::Result<Productio
 }
 ```
 
-## 24.6 测试权限阻断
+## 24.6 PermissionChecker 完整单元测试
 
 ```rust
-#[tokio::test]
-async fn bash_rm_rf_is_denied_by_default() {
-    let cfg = PermissionConfig {
-        deny: vec!["Bash(rm -rf *)".into()], ..Default::default()
-    };
-    let checker = PermissionChecker::new(&cfg).unwrap();
-    let req = PermissionRequest { category:"Bash".into(), action: Action::Bash { cmd: "rm -rf /tmp/test".into() } };
-    assert!(matches!(checker.check(&req), Decision::Deny(_)));
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mcc_config::PermissionConfig;
+
+    fn cfg(allow: &[&str], deny: &[&str], mode: Option<&str>) -> PermissionConfig {
+        PermissionConfig {
+            mode: mode.map(|s| s.to_string()),
+            allow: allow.iter().map(|s| s.to_string()).collect(),
+            deny: deny.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    // deny 优先于 allow
+    #[test]
+    fn test_deny_overrides_allow() {
+        let c = cfg(&["Bash(git:*)"], &["Bash(rm:*)"], None);
+        let checker = PermissionChecker::new(&c).unwrap();
+
+        // git 命令 → allow
+        let d = checker.check(&PermissionRequest {
+            category: "Bash".into(),
+            action: Action::Bash { cmd: "git status".into() },
+        });
+        assert!(matches!(d, Decision::Allow), "{d:?}");
+
+        // rm 命令 → deny（即使 allow 也有 Bash 规则）
+        let d = checker.check(&PermissionRequest {
+            category: "Bash".into(),
+            action: Action::Bash { cmd: "rm -rf /".into() },
+        });
+        assert!(matches!(d, Decision::Deny(_)), "{d:?}");
+    }
+
+    // bypassPermissions 模式下一切放行
+    #[test]
+    fn test_bypass_permissions_mode() {
+        let c = cfg(&[], &[], Some("bypassPermissions"));
+        let checker = PermissionChecker::new(&c).unwrap();
+        let d = checker.check(&PermissionRequest {
+            category: "Bash".into(),
+            action: Action::Bash { cmd: "anything".into() },
+        });
+        assert!(matches!(d, Decision::Allow));
+    }
+
+    // 默认模式：读操作始终放行
+    #[test]
+    fn test_read_always_allowed_by_default() {
+        let c = cfg(&[], &[], None);
+        let checker = PermissionChecker::new(&c).unwrap();
+        let d = checker.check(&PermissionRequest {
+            category: "Read".into(),
+            action: Action::Path { path: "/some/file.rs".into() },
+        });
+        assert!(matches!(d, Decision::Allow));
+    }
+
+    // 默认模式：写操作需要询问
+    #[test]
+    fn test_write_asks_in_default_mode() {
+        let c = cfg(&[], &[], None);
+        let checker = PermissionChecker::new(&c).unwrap();
+        let d = checker.check(&PermissionRequest {
+            category: "Write".into(),
+            action: Action::Path { path: "/some/file.rs".into() },
+        });
+        assert!(matches!(d, Decision::Ask(_)));
+    }
+
+    // acceptEdits 模式下写操作放行
+    #[test]
+    fn test_write_allowed_in_accept_edits_mode() {
+        let c = cfg(&[], &[], Some("acceptEdits"));
+        let checker = PermissionChecker::new(&c).unwrap();
+        let d = checker.check(&PermissionRequest {
+            category: "Write".into(),
+            action: Action::Path { path: "/any/file.rs".into() },
+        });
+        assert!(matches!(d, Decision::Allow));
+    }
+
+    // glob 白名单
+    #[test]
+    fn test_path_allow_glob() {
+        let c = cfg(&["Read(src/**/*.rs)"], &[], None);
+        let checker = PermissionChecker::new(&c).unwrap();
+        let d = checker.check(&PermissionRequest {
+            category: "Read".into(),
+            action: Action::Path { path: "src/main/mod.rs".into() },
+        });
+        assert!(matches!(d, Decision::Allow));
+    }
+
+    // 未知 Bash 命令在默认模式下需询问
+    #[test]
+    fn test_unknown_bash_asks_in_default_mode() {
+        let c = cfg(&[], &[], None);
+        let checker = PermissionChecker::new(&c).unwrap();
+        let d = checker.check(&PermissionRequest {
+            category: "Bash".into(),
+            action: Action::Bash { cmd: "curl https://example.com".into() },
+        });
+        assert!(matches!(d, Decision::Ask(_)));
+    }
+
+    // ⚠️ 安全回归：前缀匹配必须在词边界处截断。
+    // `Bash(rm:*)` 解析出前缀 "rm"；若用 starts_with 而不加词边界检查，
+    // "rmdir /tmp" 也会被拦截（误拒绝），或 allow 规则意外放行 "curl-evil"。
+    #[test]
+    fn test_bash_prefix_requires_word_boundary() {
+        // deny 规则只应匹配 "rm"，不应匹配 "rmdir"
+        let c = cfg(&[], &["Bash(rm:*)"], None);
+        let checker = PermissionChecker::new(&c).unwrap();
+
+        let denied = checker.check(&PermissionRequest {
+            category: "Bash".into(),
+            action: Action::Bash { cmd: "rm -rf /".into() },
+        });
+        assert!(matches!(denied, Decision::Deny(_)), "rm 应被拒绝");
+
+        let not_denied = checker.check(&PermissionRequest {
+            category: "Bash".into(),
+            action: Action::Bash { cmd: "rmdir /tmp/foo".into() },
+        });
+        assert!(
+            !matches!(not_denied, Decision::Deny(_)),
+            "rmdir 不应被 rm 规则拦截"
+        );
+    }
 }
+```
+
+运行：
+```bash
+cargo test -p mcc-harness permission -- --nocapture
 ```
 
 ## 24.7 小结

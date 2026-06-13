@@ -71,9 +71,14 @@ impl SessionRecorder {
         let line = serde_json::to_string(&turn)? + "\n";
         self.writer.lock().await.write_all(line.as_bytes()).await?;
 
+        // ⚠️ 必须从 TurnSnapshot.cost_usd 累加，而不是在此处重新估算。
+        // 过去曾有过此处调用 estimate_cost_of(&turn.usage)，导致 SessionMeta
+        // 里的定价与 AgentLoop 里的定价表不同步。正确做法是由 AgentLoop
+        // 计算好 cost_usd 后写入 TurnSnapshot，recorder 只做累加。
+        let turn_cost = turn.cost_usd;
         let mut m = self.meta.lock().unwrap();
         m.turns += 1;
-        m.cost_usd += estimate_cost_of(&turn.usage);
+        m.cost_usd += turn_cost;
         let snapshot = m.clone();
         drop(m);
         tokio::fs::write(&self.meta_path, serde_json::to_string_pretty(&snapshot)?).await?;
@@ -99,6 +104,10 @@ pub struct TurnSnapshot {
     pub tool_outputs: Vec<(String, String, bool)>,
     pub usage: Usage,
     pub model: String,
+    /// 本轮 USD 花费。由 AgentLoop 写入，SessionRecorder 据此累加 meta.cost_usd。
+    /// 加 `#[serde(default)]` 保证老 JSONL 文件向后兼容（缺字段时为 0）。
+    #[serde(default)]
+    pub cost_usd: f64,
 }
 ```
 

@@ -13,7 +13,7 @@ pub struct Config {
     pub budget: BudgetConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelConfig {
     pub main: String,
     pub subagent: String,
@@ -23,7 +23,7 @@ pub struct ModelConfig {
 impl Default for ModelConfig {
     fn default() -> Self {
         Self {
-            main: "claude-opus-4-7".into(),
+            main: "claude-opus-4-8".into(),
             subagent: "claude-sonnet-4-6".into(),
             summarize: "claude-haiku-4-5-20251001".into(),
         }
@@ -39,7 +39,7 @@ pub struct PermissionConfig {
     pub deny: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BudgetConfig {
     pub max_usd_per_session: f64,
     pub max_iterations: u32,
@@ -80,8 +80,53 @@ fn merge(home: Option<Config>, proj: Option<Config>) -> Config {
         if p.permissions.mode.is_some() {
             base.permissions.mode = p.permissions.mode;
         }
-        base.budget = p.budget;
-        base.model = p.model;
+        // Only let the project override these if it actually set them.
+        // (A project file that omits `budget`/`model` deserializes to defaults;
+        // overwriting unconditionally would silently wipe the home config.)
+        if p.budget != BudgetConfig::default() {
+            base.budget = p.budget;
+        }
+        if p.model != ModelConfig::default() {
+            base.model = p.model;
+        }
     }
     base
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_without_budget_keeps_home_budget() {
+        let home = Config {
+            budget: BudgetConfig { max_usd_per_session: 9.0, max_iterations: 99 },
+            ..Default::default()
+        };
+        // Project only sets permissions; budget/model parsed as defaults.
+        let proj = Config {
+            permissions: PermissionConfig {
+                deny: vec!["Bash(rm:*)".into()],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let merged = merge(Some(home), Some(proj));
+        assert_eq!(merged.budget.max_usd_per_session, 9.0); // home preserved
+        assert!(merged.permissions.deny.iter().any(|r| r == "Bash(rm:*)"));
+    }
+
+    #[test]
+    fn project_budget_overrides_when_set() {
+        let home = Config {
+            budget: BudgetConfig { max_usd_per_session: 9.0, max_iterations: 99 },
+            ..Default::default()
+        };
+        let proj = Config {
+            budget: BudgetConfig { max_usd_per_session: 1.0, max_iterations: 5 },
+            ..Default::default()
+        };
+        let merged = merge(Some(home), Some(proj));
+        assert_eq!(merged.budget.max_usd_per_session, 1.0); // project wins
+    }
 }
