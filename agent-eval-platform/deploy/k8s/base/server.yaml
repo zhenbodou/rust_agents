@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector: { matchLabels: { app: server } }
+  template:
+    metadata:
+      labels: { app: server }
+    spec:
+      containers:
+        - name: server
+          image: eval-server:dev   # overlay 里替换为 registry digest（书 46.3）
+          ports: [{ containerPort: 8080 }]
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: eval-secrets, key: DATABASE_URL } }
+            - name: TRACE_DIR
+              value: /traces
+            - name: RUST_LOG
+              value: info
+          volumeMounts: [{ name: traces, mountPath: /traces }]
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /healthz/ready, port: 8080 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz/live, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          lifecycle:
+            preStop: { exec: { command: ["sleep", "5"] } }
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+      volumes:
+        # 演示用 emptyDir；生产换 S3（TraceStore 的接口已为此预留）
+        - name: traces
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: server }
+spec:
+  selector: { app: server }
+  ports: [{ port: 8080 }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: server }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: server } }

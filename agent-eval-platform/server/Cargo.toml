@@ -1,0 +1,56 @@
+[package]
+name = "eval-server"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79"
+
+[dependencies]
+axum = { version = "0.7", features = ["json", "multipart"] }
+tokio = { version = "1.40", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tower = { version = "0.5", features = ["timeout", "util"] }
+tower-http = { version = "0.6", features = ["trace", "cors", "timeout"] }
+futures = "0.3"
+bytes = "1"
+
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "json", "migrate"] }
+
+# Object storage: local (dev) + S3/MinIO (prod)
+object_store = { version = "0.11", features = ["aws", "http"] }
+
+# Observability: Prometheus metrics
+metrics = "0.23"
+metrics-exporter-prometheus = { version = "0.15", default-features = false, features = ["http-listener"] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+url = "2"
+
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+dotenvy = "0.15"
+
+[[bin]]
+name = "eval-server"
+path = "src/main.rs"
+
+[lib]
+name = "eval_server"
+path = "src/lib.rs"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"], default-features = false }
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["postgres", "minio"] }
+tokio = { version = "1.40", features = ["full"] }
+axum-test = "15"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
