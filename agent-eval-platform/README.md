@@ -26,19 +26,19 @@ mock agent 会模拟"grep → edit → cargo test"三轮执行并流式产出事
 
 ```bash
 # 1. Postgres
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=evalplatform postgres:17-alpine
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=evalplatform postgres:17.10-alpine
 # 2. 后端（自动跑迁移）
 cd server && cargo run
 # 3. runner
-cd runner && uv sync && uv run python -m runner.main
+cd runner && uv sync --locked && uv run python -m runner.main
 # 4. 前端（Vite 代理 /api → 8080）
-cd web && pnpm install && pnpm dev
+cd web && npm ci && npm run dev
 ```
 
 ### 接真实模型
 
 ```bash
-cd runner && uv sync --extra anthropic
+cd runner && uv sync --locked --extra anthropic
 export ANTHROPIC_API_KEY=sk-ant-...
 # 注册一个 anthropic profile（也可直接 INSERT agent_profiles）：
 psql "$DATABASE_URL" -c "INSERT INTO agent_profiles (name, scaffold, model)
@@ -62,10 +62,10 @@ psql "$DATABASE_URL" -c "INSERT INTO agent_profiles (name, scaffold, model)
 
 | 此项目（教学） | 生产 |
 |---|---|
-| 轨迹存本地文件 | S3/OSS multipart + zstd + lifecycle |
-| `/internal` 无鉴权 | mTLS 或 service token 中间件 |
+| 轨迹存本地文件或 MinIO | 托管 S3/OSS multipart + zstd + lifecycle |
+| `/internal` Bearer token + runner ownership | mTLS、NetworkPolicy、短期凭据 |
 | mock/anthropic 工具在 runner 进程内执行 | 工具收归沙箱服务（gVisor pod，ch47） |
-| CORS permissive | 域名白名单 |
+| CORS 默认 localhost 白名单 | 生产域名白名单 |
 | K8s 用 emptyDir + 演示级 PG | PVC/云盘 + 托管数据库 + External Secrets |
 
 每一条都是书中练习：把它升级到生产形态，就是你的作品集素材。
@@ -73,16 +73,30 @@ psql "$DATABASE_URL" -c "INSERT INTO agent_profiles (name, scaffold, model)
 ## 测试
 
 ```bash
-cd server && cargo test          # 含 schema 契约测试
-cd runner && uv run pytest       # 含 schema 契约测试（与 Rust 端互锁）
-cd web && pnpm tsc --noEmit
+cd server && cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings
+cd server && cargo test --locked # 含 schema 契约测试
+cd runner && uv sync --locked && uv run ruff check . && uv run pyright && uv run pytest
+cd web && npm ci && npm run build && npm audit --omit=dev
 ```
+
+### Docker 排障
+
+```bash
+docker compose build --no-cache server runner web
+docker compose up -d --scale runner=2
+docker compose ps
+docker compose logs -f server runner
+curl -sf http://localhost:8080/healthz/ready
+```
+
+Server 运行镜像是 distroless，不包含 shell/curl；compose 使用镜像内置的 `eval-healthcheck`
+二进制做 readiness 检查。
 
 ## 建议的扩展练习（按难度递增）
 
 1. **对比页**：后端 `/api/reports/compare` 已就绪，给 web 加 `/compare?a=&b=` 页面（书 51.4）。
 2. **虚拟列表**：轨迹超 2000 事件时换 @tanstack/react-virtual（书 38.3）。
-3. **internal 鉴权**：给 `/internal/*` 加 Bearer token 中间件 + runner 侧配置。
+3. **internal 鉴权增强**：把 Bearer token 替换为 mTLS 或短期工作负载身份。
 4. **S3 TraceStore**：用 MinIO 实现第二个 TraceStore（接口已对齐），compose 里加 minio 服务。
 5. **KEDA 扩缩**：prod overlay 补 ScaledObject，按 `queued` 数扩 runner、夜间缩 0（书 46.5）。
 6. **金丝雀门禁**：写 canary-gate 脚本 + GitHub Actions job，staging 跑固定任务集、通过率跌 2% 阻断（书 52.3）。

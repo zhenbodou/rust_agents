@@ -1,13 +1,15 @@
-FROM python:3.12-slim AS build
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+FROM ghcr.io/astral-sh/uv:0.9.5-python3.12-trixie-slim AS build
 WORKDIR /app
-COPY pyproject.toml ./
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+COPY pyproject.toml uv.lock ./
 COPY src/ src/
-RUN uv venv && uv pip install .
+RUN uv sync --locked --no-dev
 
-FROM python:3.12-slim AS runtime
+FROM ghcr.io/astral-sh/uv:0.9.5-python3.12-trixie-slim AS runtime
 RUN useradd -m -u 10001 app
-COPY --from=build /app /app
+COPY --from=build --chown=app:app /app /app
 USER app
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 ENTRYPOINT ["python", "-m", "runner.main"]

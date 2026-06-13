@@ -51,12 +51,12 @@ async fn start_postgres() -> (ContainerAsync<Postgres>, sqlx::PgPool) {
 
 /// 启动 MinIO 容器，返回 (container, endpoint, bucket)
 async fn start_minio() -> (ContainerAsync<GenericImage>, String) {
-    let container = GenericImage::new("minio/minio", "latest")
+    let container = GenericImage::new("minio/minio", "RELEASE.2025-09-07T16-13-09Z")
         .with_exposed_port(9000.tcp())
+        .with_wait_for(WaitFor::message_on_stderr("API:"))
         .with_env_var("MINIO_ROOT_USER", "minioadmin")
         .with_env_var("MINIO_ROOT_PASSWORD", "minioadmin")
         .with_cmd(["server", "/data"])
-        .with_wait_for(WaitFor::message_on_stderr("API:"))
         .start()
         .await
         .expect("start minio container");
@@ -70,8 +70,8 @@ async fn start_minio() -> (ContainerAsync<GenericImage>, String) {
 
 /// 构建被测 Axum App（直接使用连接池，不启动 TCP listener）
 async fn build_app(db: sqlx::PgPool, traces: eval_server::store::TraceStore) -> Router {
-    use std::sync::Arc;
     use eval_server::{api, metrics, stream::StreamHub, AppState};
+    use std::sync::Arc;
 
     let prom = metrics::install();
     let state = AppState {
@@ -163,7 +163,14 @@ async fn test_create_batch_idempotent() {
     });
 
     // 第一次创建
-    let (status, resp1) = req(&app, Method::POST, "/api/batches", Some(batch_body.clone()), false).await;
+    let (status, resp1) = req(
+        &app,
+        Method::POST,
+        "/api/batches",
+        Some(batch_body.clone()),
+        false,
+    )
+    .await;
     assert_eq!(status, StatusCode::OK, "first create failed: {resp1}");
     let id1 = resp1["id"].as_str().unwrap().to_string();
 
@@ -183,8 +190,14 @@ async fn test_lease_heartbeat_complete() {
     let app = build_app(db.clone(), traces).await;
 
     // 创建 profile + batch
-    req(&app, Method::POST, "/api/profiles",
-        Some(json!({"name":"ag","scaffold":"mock","model":"m"})), false).await;
+    req(
+        &app,
+        Method::POST,
+        "/api/profiles",
+        Some(json!({"name":"ag","scaffold":"mock","model":"m"})),
+        false,
+    )
+    .await;
     let batch_body = json!({
         "name": "lease-test", "profile": "ag",
         "cases": [{"case_id":"t1","task":"do it"}]
@@ -193,13 +206,25 @@ async fn test_lease_heartbeat_complete() {
     let _batch_id = br["id"].as_str().unwrap();
 
     // 无 auth → 401
-    let (status, _) = req(&app, Method::POST, "/internal/lease",
-        Some(json!({"runner_id":"r1"})), false).await;
+    let (status, _) = req(
+        &app,
+        Method::POST,
+        "/internal/lease",
+        Some(json!({"runner_id":"r1"})),
+        false,
+    )
+    .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
     // 有 auth → 拿到任务
-    let (status, lr) = req(&app, Method::POST, "/internal/lease",
-        Some(json!({"runner_id":"r1"})), true).await;
+    let (status, lr) = req(
+        &app,
+        Method::POST,
+        "/internal/lease",
+        Some(json!({"runner_id":"r1"})),
+        true,
+    )
+    .await;
     assert_eq!(status, StatusCode::OK, "lease failed: {lr}");
     let run = &lr["run"];
     assert!(!run.is_null(), "expected a run, got null");
@@ -228,6 +253,7 @@ async fn test_lease_heartbeat_complete() {
         .method(Method::POST)
         .uri(format!("/internal/runs/{run_id}/events"))
         .header("Authorization", "Bearer test-secret")
+        .header("X-Runner-Id", "r1")
         .header("Content-Type", "text/plain")
         .body(Body::from(event_line))
         .unwrap();
@@ -246,7 +272,14 @@ async fn test_lease_heartbeat_complete() {
     assert_eq!(status, StatusCode::OK, "complete failed: {cr}");
 
     // 验证 run 状态
-    let (status, run_resp) = req(&app, Method::GET, &format!("/api/runs/{run_id}"), None, false).await;
+    let (status, run_resp) = req(
+        &app,
+        Method::GET,
+        &format!("/api/runs/{run_id}"),
+        None,
+        false,
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(run_resp["status"].as_str(), Some("passed"));
     assert!((run_resp["score"].as_f64().unwrap() - 0.9).abs() < 0.001);
@@ -260,14 +293,32 @@ async fn test_event_ingest_and_trace_page() {
     let traces = eval_server::store::TraceStore::new_local_tmp();
     let app = build_app(db.clone(), traces).await;
 
-    req(&app, Method::POST, "/api/profiles",
-        Some(json!({"name":"ag","scaffold":"mock","model":"m"})), false).await;
-    let (_, br) = req(&app, Method::POST, "/api/batches",
-        Some(json!({"name":"t","profile":"ag","cases":[{"case_id":"c","task":"x"}]})), false).await;
+    req(
+        &app,
+        Method::POST,
+        "/api/profiles",
+        Some(json!({"name":"ag","scaffold":"mock","model":"m"})),
+        false,
+    )
+    .await;
+    let (_, br) = req(
+        &app,
+        Method::POST,
+        "/api/batches",
+        Some(json!({"name":"t","profile":"ag","cases":[{"case_id":"c","task":"x"}]})),
+        false,
+    )
+    .await;
     let _batch_id = br["id"].as_str().unwrap();
 
-    let (_, lr) = req(&app, Method::POST, "/internal/lease",
-        Some(json!({"runner_id":"r1"})), true).await;
+    let (_, lr) = req(
+        &app,
+        Method::POST,
+        "/internal/lease",
+        Some(json!({"runner_id":"r1"})),
+        true,
+    )
+    .await;
     let run_id = lr["run"]["run_id"].as_str().unwrap().to_string();
 
     // 构建 20 个事件行
@@ -286,6 +337,7 @@ async fn test_event_ingest_and_trace_page() {
         .method(Method::POST)
         .uri(format!("/internal/runs/{run_id}/events"))
         .header("Authorization", "Bearer test-secret")
+        .header("X-Runner-Id", "r1")
         .body(Body::from(lines))
         .unwrap();
     let resp = app.clone().oneshot(req_obj).await.unwrap();
@@ -315,7 +367,136 @@ async fn test_event_ingest_and_trace_page() {
     )
     .await;
     assert_eq!(page2["next_offset"], Value::Null);
-    assert_eq!(page2["events"].as_array().unwrap()[0]["seq"].as_u64(), Some(10));
+    assert_eq!(
+        page2["events"].as_array().unwrap()[0]["seq"].as_u64(),
+        Some(10)
+    );
+}
+
+// ─── 测试 3b：事件与批次输入安全校验 ────────────────────────────────────
+
+#[tokio::test]
+async fn test_event_security_validation() {
+    let (_pg, db) = start_postgres().await;
+    let traces = eval_server::store::TraceStore::new_local_tmp();
+    let app = build_app(db.clone(), traces).await;
+
+    req(
+        &app,
+        Method::POST,
+        "/api/profiles",
+        Some(json!({"name":"ag","scaffold":"mock","model":"m"})),
+        false,
+    )
+    .await;
+    req(
+        &app,
+        Method::POST,
+        "/api/batches",
+        Some(json!({"name":"t","profile":"ag","cases":[{"case_id":"c","task":"x"}]})),
+        false,
+    )
+    .await;
+
+    let (_, lr) = req(
+        &app,
+        Method::POST,
+        "/internal/lease",
+        Some(json!({"runner_id":"owner-runner"})),
+        true,
+    )
+    .await;
+    let run_id = lr["run"]["run_id"].as_str().unwrap().to_string();
+
+    let valid_event = serde_json::to_string(&json!({
+        "schema_version": 1, "seq": 0, "ts": 1_700_000_000.0,
+        "type": "run_started", "run_id": run_id,
+        "case_id": "c", "task": "x", "model": "m"
+    }))
+    .unwrap();
+
+    let wrong_runner_req = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/internal/runs/{run_id}/events"))
+        .header("Authorization", "Bearer test-secret")
+        .header("X-Runner-Id", "other-runner")
+        .body(Body::from(valid_event.clone()))
+        .unwrap();
+    let wrong_runner_resp = app.clone().oneshot(wrong_runner_req).await.unwrap();
+    assert_eq!(wrong_runner_resp.status(), StatusCode::CONFLICT);
+
+    let bad_schema = valid_event.replace("\"schema_version\":1", "\"schema_version\":2");
+    let bad_schema_req = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/internal/runs/{run_id}/events"))
+        .header("Authorization", "Bearer test-secret")
+        .header("X-Runner-Id", "owner-runner")
+        .body(Body::from(bad_schema))
+        .unwrap();
+    let bad_schema_resp = app.clone().oneshot(bad_schema_req).await.unwrap();
+    assert_eq!(bad_schema_resp.status(), StatusCode::BAD_REQUEST);
+
+    let mismatched_run_id = Uuid::new_v4();
+    let mismatched_event = serde_json::to_string(&json!({
+        "schema_version": 1, "seq": 0, "ts": 1_700_000_000.0,
+        "type": "run_started", "run_id": mismatched_run_id,
+        "case_id": "c", "task": "x", "model": "m"
+    }))
+    .unwrap();
+    let mismatched_req = Request::builder()
+        .method(Method::POST)
+        .uri(format!("/internal/runs/{run_id}/events"))
+        .header("Authorization", "Bearer test-secret")
+        .header("X-Runner-Id", "owner-runner")
+        .body(Body::from(mismatched_event))
+        .unwrap();
+    let mismatched_resp = app.clone().oneshot(mismatched_req).await.unwrap();
+    assert_eq!(mismatched_resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_batch_input_validation() {
+    let (_pg, db) = start_postgres().await;
+    let traces = eval_server::store::TraceStore::new_local_tmp();
+    let app = build_app(db.clone(), traces).await;
+
+    req(
+        &app,
+        Method::POST,
+        "/api/profiles",
+        Some(json!({"name":"ag","scaffold":"mock","model":"m"})),
+        false,
+    )
+    .await;
+
+    let (status, _) = req(
+        &app,
+        Method::POST,
+        "/api/batches",
+        Some(json!({
+            "name": "bad-parallelism", "profile": "ag", "parallelism": 0,
+            "cases": [{"case_id":"c1","task":"x"}]
+        })),
+        false,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let (status, _) = req(
+        &app,
+        Method::POST,
+        "/api/batches",
+        Some(json!({
+            "name": "duplicate-cases", "profile": "ag",
+            "cases": [
+                {"case_id":"same","task":"x"},
+                {"case_id":"same","task":"y"}
+            ]
+        })),
+        false,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 // ─── 测试 4：租约自愈（reaper）────────────────────────────────────────────
@@ -326,16 +507,33 @@ async fn test_reaper_reclaims_expired_lease() {
     let traces = eval_server::store::TraceStore::new_local_tmp();
     let app = build_app(db.clone(), traces).await;
 
-    req(&app, Method::POST, "/api/profiles",
-        Some(json!({"name":"ag","scaffold":"mock","model":"m"})), false).await;
-    let (_, br) = req(&app, Method::POST, "/api/batches",
+    req(
+        &app,
+        Method::POST,
+        "/api/profiles",
+        Some(json!({"name":"ag","scaffold":"mock","model":"m"})),
+        false,
+    )
+    .await;
+    let (_, br) = req(
+        &app,
+        Method::POST,
+        "/api/batches",
         Some(json!({"name":"reap-test","profile":"ag","cases":[{"case_id":"r","task":"t"}]})),
-        false).await;
-    let batch_id = br["id"].as_str().unwrap().to_string();
+        false,
+    )
+    .await;
+    let _batch_id = br["id"].as_str().unwrap().to_string();
 
     // lease（TTL 超短，直接 SQL 设置过去时间来模拟过期）
-    let (_, lr) = req(&app, Method::POST, "/internal/lease",
-        Some(json!({"runner_id":"dead-runner"})), true).await;
+    let (_, lr) = req(
+        &app,
+        Method::POST,
+        "/internal/lease",
+        Some(json!({"runner_id":"dead-runner"})),
+        true,
+    )
+    .await;
     let run_id: Uuid = lr["run"]["run_id"].as_str().unwrap().parse().unwrap();
 
     // 强制让租约立即过期
@@ -349,17 +547,22 @@ async fn test_reaper_reclaims_expired_lease() {
     eval_server::scheduler::run_reaper_once(&db).await.unwrap();
 
     // run 应该回到 queued
-    let (status_str,): (String,) =
-        sqlx::query_as("SELECT status FROM runs WHERE id = $1")
-            .bind(run_id)
-            .fetch_one(&db)
-            .await
-            .unwrap();
+    let (status_str,): (String,) = sqlx::query_as("SELECT status FROM runs WHERE id = $1")
+        .bind(run_id)
+        .fetch_one(&db)
+        .await
+        .unwrap();
     assert_eq!(status_str, "queued", "reaper should have reset to queued");
 
     // 另一个 runner 应该能领到这个任务
-    let (_, lr2) = req(&app, Method::POST, "/internal/lease",
-        Some(json!({"runner_id":"healthy-runner"})), true).await;
+    let (_, lr2) = req(
+        &app,
+        Method::POST,
+        "/internal/lease",
+        Some(json!({"runner_id":"healthy-runner"})),
+        true,
+    )
+    .await;
     assert!(!lr2["run"].is_null(), "healthy runner should get the task");
 }
 
@@ -371,11 +574,20 @@ async fn test_compare_report() {
     let traces = eval_server::store::TraceStore::new_local_tmp();
     let app = build_app(db.clone(), traces).await;
 
-    req(&app, Method::POST, "/api/profiles",
-        Some(json!({"name":"ag","scaffold":"mock","model":"m"})), false).await;
+    req(
+        &app,
+        Method::POST,
+        "/api/profiles",
+        Some(json!({"name":"ag","scaffold":"mock","model":"m"})),
+        false,
+    )
+    .await;
 
     // 批次 A
-    let (_, ba) = req(&app, Method::POST, "/api/batches",
+    let (_, ba) = req(
+        &app,
+        Method::POST,
+        "/api/batches",
         Some(json!({
             "name": "batch-a", "profile": "ag",
             "cases": [
@@ -383,11 +595,17 @@ async fn test_compare_report() {
                 {"case_id":"c2","task":"t2"},
                 {"case_id":"c3","task":"t3"},
             ]
-        })), false).await;
+        })),
+        false,
+    )
+    .await;
     let bid_a = ba["id"].as_str().unwrap().to_string();
 
     // 批次 B
-    let (_, bb) = req(&app, Method::POST, "/api/batches",
+    let (_, bb) = req(
+        &app,
+        Method::POST,
+        "/api/batches",
         Some(json!({
             "name": "batch-b", "profile": "ag",
             "cases": [
@@ -395,7 +613,10 @@ async fn test_compare_report() {
                 {"case_id":"c2","task":"t2"},
                 {"case_id":"c3","task":"t3"},
             ]
-        })), false).await;
+        })),
+        false,
+    )
+    .await;
     let bid_b = bb["id"].as_str().unwrap().to_string();
 
     // 手动设置 run 状态（绕过 runner，直接 SQL）
@@ -436,8 +657,16 @@ async fn test_compare_report() {
     assert_eq!(summary["total"].as_u64(), Some(3));
     assert_eq!(summary["passed_a"].as_u64(), Some(2));
     assert_eq!(summary["passed_b"].as_u64(), Some(2));
-    assert_eq!(summary["regressions"].as_u64(), Some(1), "c2 should be regression");
-    assert_eq!(summary["improvements"].as_u64(), Some(1), "c3 should be improvement");
+    assert_eq!(
+        summary["regressions"].as_u64(),
+        Some(1),
+        "c2 should be regression"
+    );
+    assert_eq!(
+        summary["improvements"].as_u64(),
+        Some(1),
+        "c3 should be improvement"
+    );
 
     // c2: A=passed, B=failed → regression
     let cases = report["cases"].as_array().unwrap();
@@ -467,7 +696,7 @@ async fn test_dashboard_stats() {
 
 #[tokio::test]
 async fn test_minio_health_check() {
-    let (_pg, db) = start_postgres().await;
+    let (_pg, _db) = start_postgres().await;
     let (_minio, endpoint) = start_minio().await;
 
     // 创建 bucket（MinIO 需要提前建）
@@ -488,7 +717,11 @@ async fn test_minio_health_check() {
 
     // 由于 MinIO 需要 bucket 存在，这里主要验证 from_env() 不 panic
     let traces = eval_server::store::TraceStore::from_env();
-    assert!(traces.is_ok(), "S3 TraceStore failed to build: {:?}", traces.err());
+    assert!(
+        traces.is_ok(),
+        "S3 TraceStore failed to build: {:?}",
+        traces.err()
+    );
 
     // 清理环境变量
     std::env::remove_var("TRACE_BACKEND");

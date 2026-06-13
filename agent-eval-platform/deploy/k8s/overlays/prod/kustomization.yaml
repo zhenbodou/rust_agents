@@ -1,7 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: eval-platform
 resources:
   - ../../base
+  - networkpolicy.yaml
 patches:
   - patch: |-
       - op: replace
@@ -9,7 +11,16 @@ patches:
         value: 3
     target: { kind: Deployment, name: server }
 # 生产增量（练习：参照书 46/52 章补全）：
+# images:
+#   - name: eval-server:dev
+#     newName: ghcr.io/yourorg/eval-server
+#     digest: sha256:REPLACE_WITH_IMMUTABLE_DIGEST
+#   - name: eval-runner:dev
+#     newName: ghcr.io/yourorg/eval-runner
+#     digest: sha256:REPLACE_WITH_IMMUTABLE_DIGEST
+#   - name: eval-web:dev
+#     newName: ghcr.io/yourorg/eval-web
+#     digest: sha256:REPLACE_WITH_IMMUTABLE_DIGEST
 # - KEDA ScaledObject：runner 按 queued 数扩缩、夜间缩 0
-# - NetworkPolicy：沙箱默认断网
 # - ServiceMonitor + 告警规则（QueueStalled / TraceFinalizeFailures）
 # - External Secrets：DATABASE_URL 从 Vault 同步

@@ -31,15 +31,24 @@ class MockAdapter:
     async def run(self, req: RunRequest) -> AsyncIterator[TraceEvent]:
         seq = Seq()
         should_fail = "fail" in req.task.lower()
-        yield RunStarted(seq=seq.next(), run_id=req.run_id, case_id=req.case_id,
-                         task=req.task, model=req.model)
+        yield RunStarted(
+            seq=seq.next(), run_id=req.run_id, case_id=req.case_id, task=req.task, model=req.model
+        )
 
         plan = [
-            ("grep", {"pattern": "divide", "path": "src/"}, "src/math.rs:12: pub fn divide(", False),
+            (
+                "grep",
+                {"pattern": "divide", "path": "src/"},
+                "src/math.rs:12: pub fn divide(",
+                False,
+            ),
             ("edit", {"path": "src/math.rs"}, "+4 -1 lines", False),
-            ("bash", {"command": "cargo test"},
-             "test result: FAILED. 1 failed" if should_fail else "test result: ok. 12 passed",
-             should_fail),
+            (
+                "bash",
+                {"command": "cargo test"},
+                "test result: FAILED. 1 failed" if should_fail else "test result: ok. 12 passed",
+                should_fail,
+            ),
         ]
 
         turn = 0
@@ -52,8 +61,13 @@ class MockAdapter:
             call_id = uuid.uuid4().hex[:8]
             yield ToolCall(seq=seq.next(), turn=turn, call_id=call_id, tool_name=tool, args=args)
             await asyncio.sleep(self.pace_s)
-            yield ToolResult(seq=seq.next(), call_id=call_id, output=output,
-                             is_error=is_error, duration_ms=random.randint(8, 2200))
+            yield ToolResult(
+                seq=seq.next(),
+                call_id=call_id,
+                output=output,
+                is_error=is_error,
+                duration_ms=random.randint(8, 2200),
+            )
             turn += 1
 
         yield RunFinished(

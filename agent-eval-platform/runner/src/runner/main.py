@@ -10,18 +10,19 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import socket
 import sys
 import time
-from typing import Any
 
 import httpx
 
 from runner.adapters.base import AgentAdapter, RunRequest
 from runner.adapters.mock import MockAdapter
-from runner.events import LlmChunk, RunFinished, Seq, ToolCall, ToolResult
-from runner.scoring import TraceSnapshot, score as compute_score
+from runner.events import LlmChunk, RunFinished, ToolCall, ToolResult
+from runner.scoring import TraceSnapshot
+from runner.scoring import score as compute_score
 
 SERVER = os.environ.get("EVAL_SERVER_URL", "http://localhost:8080")
 RUNNER_ID = os.environ.get("RUNNER_ID", f"{socket.gethostname()}-{os.getpid()}")
@@ -31,9 +32,10 @@ FLUSH_INTERVAL_S = 0.5
 
 
 def _auth_headers() -> dict[str, str]:
+    headers = {"X-Runner-Id": RUNNER_ID}
     if RUNNER_SECRET:
-        return {"Authorization": f"Bearer {RUNNER_SECRET}"}
-    return {}
+        headers["Authorization"] = f"Bearer {RUNNER_SECRET}"
+    return headers
 
 
 def make_adapter(scaffold: str) -> AgentAdapter:
@@ -41,9 +43,11 @@ def make_adapter(scaffold: str) -> AgentAdapter:
         return MockAdapter()
     if scaffold == "anthropic":
         from runner.adapters.anthropic_agent import AnthropicAdapter
+
         return AnthropicAdapter()
     if scaffold == "langgraph":
         from runner.adapters.langgraph_agent import LangGraphAdapter
+
         return LangGraphAdapter()
     raise ValueError(f"unknown scaffold: {scaffold}")
 
@@ -55,6 +59,7 @@ async def heartbeat_loop(http: httpx.AsyncClient, run_id: str) -> None:
             f"/internal/runs/{run_id}/heartbeat",
             json={"runner_id": RUNNER_ID},
         )
+        r.raise_for_status()
         if not r.json().get("alive"):
             # 租约被 reaper 回收（多半是我们卡太久）
             raise RuntimeError("lease lost")
@@ -64,8 +69,10 @@ async def execute(http: httpx.AsyncClient, lease: dict) -> None:
     run_id = lease["run_id"]
     expectations: list[dict] = lease.get("expectations") or []
     req = RunRequest(
-        run_id=run_id, case_id=lease["case_id"],
-        task=lease["task"], model=lease["model"],
+        run_id=run_id,
+        case_id=lease["case_id"],
+        task=lease["task"],
+        model=lease["model"],
     )
     adapter = make_adapter(lease["scaffold"])
 
@@ -77,12 +84,18 @@ async def execute(http: httpx.AsyncClient, lease: dict) -> None:
     async def flush() -> None:
         if buf:
             lines, buf[:] = "\n".join(buf), []
-            await http.post(f"/internal/runs/{run_id}/events", content=lines)
+            r = await http.post(f"/internal/runs/{run_id}/events", content=lines)
+            r.raise_for_status()
+
+    def ensure_heartbeat_alive() -> None:
+        if hb.done():
+            hb.result()
 
     hb = asyncio.create_task(heartbeat_loop(http, run_id))
     try:
         last_flush = asyncio.get_event_loop().time()
         async for ev in adapter.run(req):
+            ensure_heartbeat_alive()
             # 构建 TraceSnapshot（供评分用）
             if isinstance(ev, ToolCall):
                 snap.tool_calls.append(ev)
@@ -99,9 +112,11 @@ async def execute(http: httpx.AsyncClient, lease: dict) -> None:
             now = asyncio.get_event_loop().time()
             if now - last_flush >= FLUSH_INTERVAL_S:
                 await flush()
+                ensure_heartbeat_alive()
                 last_flush = now
 
         await flush()
+        ensure_heartbeat_alive()
         duration_s = time.monotonic() - t_start
 
         # ── 评分 ───────────────────────────────────────────────────────
@@ -118,31 +133,46 @@ async def execute(http: httpx.AsyncClient, lease: dict) -> None:
             status = "error"
             score_val = None
 
-        await http.post(f"/internal/runs/{run_id}/complete", json={
-            "runner_id": RUNNER_ID,
-            "status": status,
-            "score": score_val,
-            "cost_usd": final.cost_usd if final else None,
-            "turns": final.turns if final else None,
-            "duration_s": round(duration_s, 3),
-            "error": None,
-        })
-        print(f"[{RUNNER_ID}] run {run_id} -> {status}"
-              + (f" score={score_val:.3f}" if score_val is not None else ""))
+        r = await http.post(
+            f"/internal/runs/{run_id}/complete",
+            json={
+                "runner_id": RUNNER_ID,
+                "status": status,
+                "score": score_val,
+                "cost_usd": final.cost_usd if final else None,
+                "turns": final.turns if final else None,
+                "duration_s": round(duration_s, 3),
+                "error": None,
+            },
+        )
+        r.raise_for_status()
+        print(
+            f"[{RUNNER_ID}] run {run_id} -> {status}"
+            + (f" score={score_val:.3f}" if score_val is not None else "")
+        )
 
     except Exception as e:  # 单 run 失败隔离（ch41 rollout 骨架的铁律）
         duration_s = time.monotonic() - t_start
         print(f"[{RUNNER_ID}] run {run_id} crashed: {e}", file=sys.stderr)
         try:
             await flush()
-            await http.post(f"/internal/runs/{run_id}/complete", json={
-                "runner_id": RUNNER_ID, "status": "error",
-                "error": str(e)[:1000], "duration_s": round(duration_s, 3),
-            })
+            r = await http.post(
+                f"/internal/runs/{run_id}/complete",
+                json={
+                    "runner_id": RUNNER_ID,
+                    "status": "error",
+                    "error": str(e)[:1000],
+                    "duration_s": round(duration_s, 3),
+                },
+            )
+            r.raise_for_status()
         except Exception:
             pass  # complete 也失败：交给租约过期 + reaper
     finally:
-        hb.cancel()
+        if not hb.done():
+            hb.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await hb
 
 
 async def main() -> None:

@@ -54,8 +54,7 @@ impl TraceStore {
     fn new_local() -> Result<Self> {
         let dir = std::env::var("TRACE_DIR").unwrap_or_else(|_| "./traces".into());
         let path = PathBuf::from(&dir);
-        std::fs::create_dir_all(&path)
-            .with_context(|| format!("create trace dir {dir}"))?;
+        std::fs::create_dir_all(&path).with_context(|| format!("create trace dir {dir}"))?;
         let store = object_store::local::LocalFileSystem::new_with_prefix(&path)?;
         tracing::info!(dir, "TraceStore: local filesystem");
         Ok(Self {
@@ -65,13 +64,12 @@ impl TraceStore {
     }
 
     fn new_s3() -> Result<Self> {
-        let endpoint = std::env::var("S3_ENDPOINT")
-            .unwrap_or_else(|_| "http://minio:9000".into());
+        let endpoint = std::env::var("S3_ENDPOINT").unwrap_or_else(|_| "http://minio:9000".into());
         let bucket = std::env::var("S3_BUCKET").unwrap_or_else(|_| "traces".into());
-        let access_key = std::env::var("S3_ACCESS_KEY")
-            .context("S3_ACCESS_KEY required for s3 backend")?;
-        let secret_key = std::env::var("S3_SECRET_KEY")
-            .context("S3_SECRET_KEY required for s3 backend")?;
+        let access_key =
+            std::env::var("S3_ACCESS_KEY").context("S3_ACCESS_KEY required for s3 backend")?;
+        let secret_key =
+            std::env::var("S3_SECRET_KEY").context("S3_SECRET_KEY required for s3 backend")?;
         let region = std::env::var("S3_REGION").unwrap_or_else(|_| "us-east-1".into());
 
         let store = object_store::aws::AmazonS3Builder::new()
@@ -82,6 +80,7 @@ impl TraceStore {
             .with_region(region)
             // MinIO 要求路径寻址而非虚拟主机寻址
             .with_virtual_hosted_style_request(false)
+            .with_allow_http(endpoint.starts_with("http://"))
             .build()
             .context("build S3 store")?;
 
@@ -92,8 +91,8 @@ impl TraceStore {
         })
     }
 
-    /// 测试专用：在系统临时目录创建隔离的本地存储
-    #[cfg(test)]
+    /// 测试专用：在系统临时目录创建隔离的本地存储。
+    #[doc(hidden)]
     pub fn new_local_tmp() -> Self {
         let dir = std::env::temp_dir().join(format!("eval-traces-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -165,12 +164,7 @@ impl TraceStore {
     // ── 读 ──────────────────────────────────────────────────────────────
 
     /// 分页读（offset/limit 按事件行数）。进行中的 run 也可读。
-    pub async fn read_page(
-        &self,
-        run_id: Uuid,
-        offset: usize,
-        limit: usize,
-    ) -> Result<TracePage> {
+    pub async fn read_page(&self, run_id: Uuid, offset: usize, limit: usize) -> Result<TracePage> {
         let key = self.key(run_id);
         let content = match self.inner.get(&key).await {
             Ok(result) => {

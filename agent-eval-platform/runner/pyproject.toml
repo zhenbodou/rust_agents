@@ -17,9 +17,12 @@ dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6", "pyright>=1.1.380"]
 [tool.ruff]
 line-length = 100
 lint.select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+lint.ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.pyright]
 typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -39,6 +39,10 @@ dotenvy = "0.15"
 name = "eval-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "eval-healthcheck"
+path = "src/bin/eval-healthcheck.rs"
+
 [lib]
 name = "eval_server"
 path = "src/lib.rs"

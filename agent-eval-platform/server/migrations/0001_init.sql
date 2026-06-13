@@ -1,5 +1,7 @@
 -- agent-eval-platform 初始 schema（对应书第 49 章领域模型）
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE agent_profiles (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            TEXT NOT NULL UNIQUE,

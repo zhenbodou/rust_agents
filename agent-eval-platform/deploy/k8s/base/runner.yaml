@@ -9,20 +9,35 @@ spec:
     metadata:
       labels: { app: runner }
     spec:
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: runner
           image: eval-runner:dev
           env:
             - name: EVAL_SERVER_URL
               value: http://server:8080
+            - name: RUNNER_SECRET
+              valueFrom: { secretKeyRef: { name: eval-secrets, key: RUNNER_SECRET } }
             - name: RUNNER_ID
               valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
           resources:
             requests: { cpu: 250m, memory: 256Mi }
             limits: { cpu: "2", memory: 1Gi }
           securityContext:
             runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
       # 生产沙箱形态（书 46.4/47）：runner 在专用节点组以 gVisor RuntimeClass
       # 运行任务 pod，并配 NetworkPolicy 默认断网。演示版 mock agent 无需沙箱。

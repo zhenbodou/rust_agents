@@ -1,9 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Suspense, lazy } from "react";
+import type { ReactNode } from "react";
 import { createBrowserRouter, Link, NavLink, Outlet, RouterProvider } from "react-router-dom";
 import { BatchDetailPage, BatchesPage } from "./features/runs/BatchesPage";
 import { TracePage } from "./features/trace/TracePage";
-import { DashboardPage } from "./features/dashboard/DashboardPage";
-import { ComparePage } from "./features/compare/ComparePage";
+
+const DashboardPage = lazy(() =>
+  import("./features/dashboard/DashboardPage").then((mod) => ({ default: mod.DashboardPage })),
+);
+const ComparePage = lazy(() =>
+  import("./features/compare/ComparePage").then((mod) => ({ default: mod.ComparePage })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 5000 } },
@@ -30,6 +37,10 @@ function Layout() {
   );
 }
 
+function route(page: ReactNode) {
+  return <Suspense fallback={<div className="loading">加载中…</div>}>{page}</Suspense>;
+}
+
 const router = createBrowserRouter([
   {
     element: <Layout />,
@@ -37,8 +48,8 @@ const router = createBrowserRouter([
       { path: "/", element: <BatchesPage /> },
       { path: "/batches/:batchId", element: <BatchDetailPage /> },
       { path: "/runs/:runId", element: <TracePage /> },
-      { path: "/dashboard", element: <DashboardPage /> },
-      { path: "/compare", element: <ComparePage /> },
+      { path: "/dashboard", element: route(<DashboardPage />) },
+      { path: "/compare", element: route(<ComparePage />) },
     ],
   },
 ]);

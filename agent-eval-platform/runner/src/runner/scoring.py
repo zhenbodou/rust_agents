@@ -29,12 +29,13 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from runner.events import RunFinished, ToolCall, ToolResult
+from runner.events import ToolCall, ToolResult
 
 
 @dataclass
 class TraceSnapshot:
     """从事件流里提取的 run 摘要，传给 score()。"""
+
     tool_calls: list[ToolCall] = field(default_factory=list)
     tool_results: list[ToolResult] = field(default_factory=list)
     text_outputs: list[str] = field(default_factory=list)  # 所有 LlmChunk.delta 的拼接
@@ -43,7 +44,7 @@ class TraceSnapshot:
 
 @dataclass
 class ScoreResult:
-    status: str          # "passed" | "failed"
+    status: str  # "passed" | "failed"
     score: float | None  # None = 没有 expectations
     reason: str
 
@@ -68,8 +69,9 @@ def score(snapshot: TraceSnapshot, expectations: list[dict[str, Any]]) -> ScoreR
         elif etype == "output_contains":
             ok, why = _check_output_contains(snapshot, exp)
         elif etype == "no_tool_errors":
-            ok, why = not snapshot.had_error, (
-                "no tool errors" if not snapshot.had_error else "had tool errors"
+            ok, why = (
+                not snapshot.had_error,
+                ("no tool errors" if not snapshot.had_error else "had tool errors"),
             )
         elif etype == "tool_call_count":
             ok, why = _check_tool_count(snapshot, exp)
@@ -91,11 +93,11 @@ def score(snapshot: TraceSnapshot, expectations: list[dict[str, Any]]) -> ScoreR
     # 阈值：0.6 及以上视为 passed（可通过 expectation 里加 threshold 覆盖）
     threshold = float(expectations[0].get("pass_threshold", 0.6)) if expectations else 0.6
     status = "passed" if ratio >= threshold else "failed"
-    return ScoreResult(status=status, score=round(ratio, 4),
-                       reason="; ".join(reasons) or "ok")
+    return ScoreResult(status=status, score=round(ratio, 4), reason="; ".join(reasons) or "ok")
 
 
 # ─── 断言实现 ─────────────────────────────────────────────────────────────
+
 
 def _check_tool_called(snap: TraceSnapshot, exp: dict) -> tuple[bool, str]:
     """验证某工具是否被调用（且参数可选匹配正则）。"""
@@ -103,25 +105,19 @@ def _check_tool_called(snap: TraceSnapshot, exp: dict) -> tuple[bool, str]:
     args_regex = exp.get("args_regex")
     ordered_after = exp.get("after_tool")  # 要求在 after_tool 之后调用
 
-    matched: list[ToolCall] = [
-        tc for tc in snap.tool_calls if tc.tool_name == tool_name
-    ]
+    matched: list[ToolCall] = [tc for tc in snap.tool_calls if tc.tool_name == tool_name]
     if not matched:
         return False, f"tool '{tool_name}' not called"
 
     if args_regex:
         pattern = re.compile(args_regex, re.IGNORECASE)
-        matched = [
-            tc for tc in matched
-            if pattern.search(str(tc.args or ""))
-        ]
+        matched = [tc for tc in matched if pattern.search(str(tc.args or ""))]
         if not matched:
             return False, f"tool '{tool_name}' called but args did not match /{args_regex}/"
 
     if ordered_after:
         # 检查 after_tool 在 matched[0] 之前存在
-        after_idxs = [i for i, tc in enumerate(snap.tool_calls)
-                      if tc.tool_name == ordered_after]
+        after_idxs = [i for i, tc in enumerate(snap.tool_calls) if tc.tool_name == ordered_after]
         first_match_idx = snap.tool_calls.index(matched[0])
         if not any(i < first_match_idx for i in after_idxs):
             return False, f"tool '{tool_name}' not called after '{ordered_after}'"

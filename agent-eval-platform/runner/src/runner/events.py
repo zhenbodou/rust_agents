@@ -6,15 +6,15 @@
 from __future__ import annotations
 
 import time
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION: Literal[1] = 1
 
 
 class _Base(BaseModel):
-    schema_version: int = SCHEMA_VERSION
+    schema_version: Literal[1] = SCHEMA_VERSION
     seq: int
     ts: float = Field(default_factory=time.time)
 
@@ -64,7 +64,7 @@ class RunFinished(_Base):
 
 
 TraceEvent = Annotated[
-    Union[RunStarted, LlmRequest, LlmChunk, ToolCall, ToolResult, RunFinished],
+    RunStarted | LlmRequest | LlmChunk | ToolCall | ToolResult | RunFinished,
     Field(discriminator="type"),
 ]
 

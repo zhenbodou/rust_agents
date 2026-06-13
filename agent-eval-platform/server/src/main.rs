@@ -6,6 +6,7 @@ use eval_server::{api, metrics, scheduler, store, stream, AppState};
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::http::HeaderValue;
 use axum::middleware;
 use axum::routing::get;
 use axum::Router;
@@ -80,12 +81,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/healthz/live", get(|| async { "ok" }))
         .route("/healthz/ready", get(api::ready))
         .layer(TraceLayer::new_for_http())
-        .layer(
-            CorsLayer::new()
-                .allow_origin(tower_http::cors::Any)
-                .allow_methods(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any),
-        )
+        .layer(cors_layer()?)
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
@@ -94,6 +90,26 @@ async fn main() -> anyhow::Result<()> {
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     Ok(())
+}
+
+fn cors_layer() -> anyhow::Result<CorsLayer> {
+    let raw = std::env::var("CORS_ALLOWED_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:5173,http://127.0.0.1:5173".to_string());
+    let origins = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|origin| !origin.is_empty())
+        .map(HeaderValue::from_str)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    if origins.is_empty() {
+        anyhow::bail!("CORS_ALLOWED_ORIGINS must contain at least one origin");
+    }
+
+    Ok(CorsLayer::new()
+        .allow_origin(origins)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any))
 }
 
 async fn shutdown_signal() {

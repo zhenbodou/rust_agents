@@ -22,6 +22,10 @@ import {
 import { fetchBatches, fetchDashboard, fetchTrend } from "../../api/client";
 import type { TrendPoint } from "../../api/schemas";
 
+function asNumber(value: unknown): number {
+  return typeof value === "number" ? value : Number(value ?? 0);
+}
+
 // ─── 统计卡片 ──────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -73,8 +77,8 @@ function TrendChart({ points }: { points: TrendPoint[] }) {
             tick={{ fontSize: 11 }}
           />
           <Tooltip
-            formatter={(val: number, name: string) =>
-              name === "通过率" ? `${val}%` : val
+            formatter={(value, name) =>
+              String(name) === "通过率" ? `${asNumber(value)}%` : asNumber(value)
             }
           />
           <Legend />
@@ -119,7 +123,7 @@ function CostChart({ points }: { points: TrendPoint[] }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis dataKey="time" tick={{ fontSize: 11 }} />
           <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(v: number) => `$${v}`} />
+          <Tooltip formatter={(value) => `$${asNumber(value)}`} />
           <Line
             type="monotone"
             dataKey="cost"

@@ -1,0 +1,15 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+**/target
+**/.venv
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/traces
+**/.DS_Store

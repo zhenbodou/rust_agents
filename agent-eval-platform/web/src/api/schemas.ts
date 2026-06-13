@@ -2,7 +2,7 @@
 // 生产做法：json-schema-to-zod 生成；教学版手写 + 未知事件优雅降级（ch51）。
 import { z } from "zod";
 
-const base = { schema_version: z.number(), seq: z.number(), ts: z.number() };
+const base = { schema_version: z.literal(1), seq: z.number(), ts: z.number() };
 
 export const TraceEventSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("run_started"), run_id: z.string(),

@@ -9,6 +9,8 @@ spec:
     metadata:
       labels: { app: web }
     spec:
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: nginx
           image: eval-web:dev
@@ -16,6 +18,10 @@ spec:
           resources:
             requests: { cpu: 50m, memory: 64Mi }
             limits: { memory: 128Mi }
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
           readinessProbe:
             httpGet: { path: /, port: 8080 }
 ---

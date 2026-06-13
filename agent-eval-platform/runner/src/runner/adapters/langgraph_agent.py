@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """LangGraph 适配器（书第 44 章 —— 对接已有 LangGraph Agent）。
 
 架构：
@@ -17,7 +18,6 @@ from __future__ import annotations
 import asyncio
 import os
 import tempfile
-import time
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -47,10 +47,8 @@ class LangGraphAdapter:
     def _validate_deps(self) -> None:
         try:
             import langgraph  # noqa: F401
-        except ImportError:
-            raise ImportError(
-                "langgraph not installed. Run: uv sync --extra langgraph"
-            )
+        except ImportError as err:
+            raise ImportError("langgraph not installed. Run: uv sync --extra langgraph") from err
 
     async def run(self, req: RunRequest) -> AsyncIterator[TraceEvent]:
         import langgraph.prebuilt  # noqa: F401
@@ -60,8 +58,11 @@ class LangGraphAdapter:
 
         seq = Seq()
         yield RunStarted(
-            seq=seq.next(), run_id=req.run_id,
-            case_id=req.case_id, task=req.task, model=req.model,
+            seq=seq.next(),
+            run_id=req.run_id,
+            case_id=req.case_id,
+            task=req.task,
+            model=req.model,
         )
 
         with tempfile.TemporaryDirectory() as workspace:
@@ -90,7 +91,7 @@ class LangGraphAdapter:
                     config={"recursion_limit": req.max_turns * 2},
                 ):
                     # chunk = { node_name: { messages: [...] } }
-                    for node_name, node_output in chunk.items():
+                    for _node_name, node_output in chunk.items():
                         msgs = node_output.get("messages", [])
                         for msg in msgs:
                             if isinstance(msg, AIMessage):
@@ -100,21 +101,21 @@ class LangGraphAdapter:
                                 in_tok += usage.get("input_tokens", 0)
                                 out_tok += usage.get("output_tokens", 0)
                                 yield LlmRequest(
-                                    seq=seq.next(), turn=turn,
+                                    seq=seq.next(),
+                                    turn=turn,
                                     input_tokens=in_tok,
                                 )
                                 # 文本内容
                                 text = msg.content if isinstance(msg.content, str) else ""
                                 if text:
                                     text_buf.append(text)
-                                    yield LlmChunk(
-                                        seq=seq.next(), turn=turn, delta=text
-                                    )
+                                    yield LlmChunk(seq=seq.next(), turn=turn, delta=text)
                                 # 工具调用
-                                for tc in (msg.tool_calls or []):
+                                for tc in msg.tool_calls or []:
                                     call_id = tc.get("id", uuid.uuid4().hex[:8])
                                     yield ToolCall(
-                                        seq=seq.next(), turn=turn,
+                                        seq=seq.next(),
+                                        turn=turn,
                                         call_id=call_id,
                                         tool_name=tc["name"],
                                         args=tc.get("args"),
@@ -129,16 +130,18 @@ class LangGraphAdapter:
                                     duration_ms=0,
                                 )
 
-            except Exception as exc:  # graph 抛异常（超过 recursion_limit 等）
+            except Exception:  # graph 抛异常（超过 recursion_limit 等）
                 yield RunFinished(
-                    seq=seq.next(), status="error",
+                    seq=seq.next(),
+                    status="error",
                     cost_usd=in_tok * PRICE_IN + out_tok * PRICE_OUT,
                     turns=turn,
                 )
                 return
 
             yield RunFinished(
-                seq=seq.next(), status="passed",
+                seq=seq.next(),
+                status="passed",
                 score=None,  # 由 scoring 模块在 main.py 里算
                 cost_usd=in_tok * PRICE_IN + out_tok * PRICE_OUT,
                 turns=turn,
@@ -150,24 +153,29 @@ def _build_llm(model: str) -> Any:
     provider = os.environ.get("LG_MODEL_PROVIDER", "anthropic")
     if provider == "openai":
         from langchain_openai import ChatOpenAI  # type: ignore
+
         return ChatOpenAI(model=model, streaming=True)
     else:
         from langchain_anthropic import ChatAnthropic  # type: ignore
+
         return ChatAnthropic(model_name=model, streaming=True)
 
 
 async def _run_bash(command: str, cwd: str, timeout_s: int = 60) -> tuple[str, bool]:
+    proc = None
     try:
         proc = await asyncio.create_subprocess_shell(
-            command, cwd=cwd,
+            command,
+            cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
         out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
         return out.decode(errors="replace"), proc.returncode != 0
     except TimeoutError:
-        try:
-            proc.kill()
-        except ProcessLookupError:
-            pass
+        if proc is not None:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
         return f"timeout after {timeout_s}s", True
